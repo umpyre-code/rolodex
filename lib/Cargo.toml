@@ -1,0 +1,13 @@
+[package]
+name = "rolodex-grpc"
+version = "0.1.0"
+authors = ["Brenden Matthews <brenden@brndn.io>"]
+edition = "2018"
+
+[dependencies]
+prost = "0.5"
+bytes = "0.4"
+tower-grpc = { git = "https://github.com/tower-rs/tower-grpc" }
+
+[build-dependencies]
+tower-grpc-build = { git = "https://github.com/tower-rs/tower-grpc" }

@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.rolodex";
+option java_outer_classname = "RolodexProto";
+
+package rolodex;
+
+service Rolodex {
+  rpc AddUser(NewUser) returns (User) {}
+  rpc Authenticate(AuthRequest) returns (AuthResult) {}
+}
+
+message NewUser { string name = 1; }
+
+message User {
+  string user_id = 1;
+  string name = 2;
+}
+
+message AuthRequest {
+  string user_id = 1;
+  string password_hash = 2;
+}
+
+message AuthResult {
+  enum Result {
+    SUCCESS = 0;
+    FAILURE = 1;
+  }
+  Result result = 1;
+  string auth_token = 2;
+}
