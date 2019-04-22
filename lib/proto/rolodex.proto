@@ -7,15 +7,27 @@ option java_outer_classname = "RolodexProto";
 package rolodex;
 
 service Rolodex {
-  rpc AddUser(NewUser) returns (User) {}
-  rpc Authenticate(AuthRequest) returns (AuthResult) {}
+  rpc AddUser(NewUserRequest) returns (NewUserResponse) {}
+  rpc Authenticate(AuthRequest) returns (AuthResponse) {}
 }
 
-message NewUser { string name = 1; }
+message NewUserRequest {
+  string full_name = 1;
+  string phone_number = 2;
+  string email = 3;
+  string password_hash = 4;
+}
 
-message User {
-  string user_id = 1;
-  string name = 2;
+message NewUserResponse {
+  enum Error {
+    InvalidPhoneNumber = 0;
+    InvalidEmail = 1;
+    LowQualityPassword = 2;
+  }
+  oneof result {
+    string user_id = 1;
+    Error error = 2;
+  }
 }
 
 message AuthRequest {
@@ -23,7 +35,7 @@ message AuthRequest {
   string password_hash = 2;
 }
 
-message AuthResult {
+message AuthResponse {
   enum Result {
     SUCCESS = 0;
     FAILURE = 1;

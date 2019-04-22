@@ -1,0 +1,1 @@
+DROP TABLE unique_email_addresses
