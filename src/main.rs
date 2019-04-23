@@ -8,17 +8,19 @@ extern crate tower_h2;
 extern crate diesel;
 extern crate chrono;
 #[macro_use]
+extern crate failure;
+#[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
 extern crate color_backtrace;
 extern crate instrumented;
 extern crate r2d2_postgres;
+extern crate rolodex_grpc;
 extern crate tokio_rustls;
 extern crate toml;
 extern crate tower_grpc;
 extern crate yansi;
-extern crate rolodex_grpc;
 
 mod config;
 mod schema;

@@ -14,12 +14,14 @@ message NewUserRequest {
   string password_hash = 4;
 }
 
+enum Error {
+  InvalidPhoneNumber = 0;
+  InvalidEmail = 1;
+  LowQualityPassword = 2;
+  BadCredentials = 3;
+}
+
 message NewUserResponse {
-  enum Error {
-    InvalidPhoneNumber = 0;
-    InvalidEmail = 1;
-    LowQualityPassword = 2;
-  }
   oneof result {
     string user_id = 1;
     Error error = 2;
@@ -32,9 +34,8 @@ message AuthRequest {
 }
 
 message AuthResponse {
-  enum Result {
-    SUCCESS = 0;
-    FAILURE = 1;
+  oneof result {
+    string user_id = 1;
+    Error error = 2;
   }
-  Result result = 1;
 }
