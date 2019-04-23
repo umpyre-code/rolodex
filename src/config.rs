@@ -9,6 +9,7 @@ use yansi::Paint;
 pub struct Config {
     pub service: Service,
     pub database: Database,
+    pub metrics: Metrics,
 }
 
 #[derive(Debug, Deserialize)]
@@ -22,11 +23,16 @@ pub struct Service {
 
 #[derive(Debug, Deserialize)]
 pub struct Database {
-    pub hostname: String,
+    pub host: String,
     pub port: i32,
     pub username: String,
     pub password: String,
     pub connection_pool_size: u32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Metrics {
+    pub bind_to_address: String,
 }
 
 fn get_rolodex_toml_path() -> String {

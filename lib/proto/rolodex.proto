@@ -1,9 +1,5 @@
 syntax = "proto3";
 
-option java_multiple_files = true;
-option java_package = "io.grpc.rolodex";
-option java_outer_classname = "RolodexProto";
-
 package rolodex;
 
 service Rolodex {
@@ -41,5 +37,4 @@ message AuthResponse {
     FAILURE = 1;
   }
   Result result = 1;
-  string auth_token = 2;
 }

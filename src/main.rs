@@ -12,12 +12,13 @@ extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
 extern crate color_backtrace;
+extern crate instrumented;
 extern crate r2d2_postgres;
-extern crate rolodex_grpc;
 extern crate tokio_rustls;
 extern crate toml;
 extern crate tower_grpc;
 extern crate yansi;
+extern crate rolodex_grpc;
 
 mod config;
 mod schema;
@@ -81,7 +82,7 @@ fn get_db_pool() -> r2d2_postgres::r2d2::Pool<
     let manager = PostgresConnectionManager::new(
         format!(
             "host={} port={} user={} password={}",
-            config::CONFIG.database.hostname,
+            config::CONFIG.database.host,
             config::CONFIG.database.port,
             config::CONFIG.database.username,
             config::CONFIG.database.password,
@@ -99,7 +100,7 @@ fn get_db_pool() -> r2d2_postgres::r2d2::Pool<
     let mut client = db_pool.get().unwrap();
     client
         .execute("SELECT 1", &[])
-        .expect("Unable to execute query");
+        .expect("Unable to execute test query");
 
     db_pool
 }
@@ -110,6 +111,8 @@ pub fn main() {
     ::env_logger::init();
 
     config::load_config();
+
+    instrumented::init(&config::CONFIG.metrics.bind_to_address);
 
     let new_service = server::RolodexServer::new(service::Rolodex::new(get_db_pool()));
 
