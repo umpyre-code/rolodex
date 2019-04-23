@@ -1,7 +1,7 @@
 CREATE TABLE unique_email_addresses (
   id INTEGER NOT NULL PRIMARY KEY,
-  user_id INTEGER REFERENCES users (id),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  email_as_entered VARCHAR(255),
-  email_without_labels VARCHAR(255))
+  user_id INTEGER NOT NULL REFERENCES users (id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  email_as_entered TEXT NOT NULL,
+  email_without_labels TEXT NOT NULL)

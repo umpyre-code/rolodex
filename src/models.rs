@@ -1,37 +1,45 @@
+extern crate uuid;
+
+use crate::schema::unique_email_addresses;
 use crate::schema::users;
 use chrono::NaiveDateTime;
-use uuid::Uuid;
 
-#[derive(Queryable)]
+#[derive(Queryable, Identifiable)]
 pub struct User {
-  pub id: i32,
-  pub uuid: Uuid,
-  pub created_at: NaiveDateTime,
-  pub updated_at: NaiveDateTime,
-  pub full_name: String,
+    pub id: i32,
+    pub uuid: uuid::Uuid,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub full_name: String,
+    pub email: String,
+    pub phone_number: String,
 }
 
 #[derive(AsChangeset, Insertable)]
 #[table_name = "users"]
 pub struct NewUser {
-  pub full_name: String,
-  pub password_hash: String,
+    pub full_name: String,
+    pub password_hash: String,
+    pub phone_number: String,
 }
 
-#[derive(Queryable)]
-pub struct UniqueEmailAddress {
-  pub id: i32,
-  pub user_id: i32,
-  pub created_at: NaiveDateTime,
-  pub updated_at: NaiveDateTime,
-  pub email_as_entered: String,
-  pub email_without_labels: String,
-}
-
-#[derive(AsChangeset, Insertable)]
+#[derive(Queryable, Associations, Identifiable)]
 #[table_name = "unique_email_addresses"]
+#[belongs_to(User)]
+pub struct UniqueEmailAddress {
+    pub id: i32,
+    pub user_id: i32,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub email_as_entered: String,
+    pub email_without_labels: String,
+}
+
+#[derive(AsChangeset, Insertable, Associations)]
+#[table_name = "unique_email_addresses"]
+#[belongs_to(User)]
 pub struct NewUniqueEmailAddress {
-  pub user_id: i32,
-  pub email_as_entered: String,
-  pub email_without_labels: String,
+    pub user_id: i32,
+    pub email_as_entered: String,
+    pub email_without_labels: String,
 }

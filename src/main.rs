@@ -15,7 +15,6 @@ extern crate serde_derive;
 extern crate lazy_static;
 extern crate color_backtrace;
 extern crate instrumented;
-extern crate r2d2_postgres;
 extern crate rolodex_grpc;
 extern crate tokio_rustls;
 extern crate toml;
@@ -23,12 +22,11 @@ extern crate tower_grpc;
 extern crate yansi;
 
 mod config;
+mod models;
 mod schema;
 mod service;
 
 use futures::{Future, Stream};
-use r2d2_postgres::postgres::NoTls;
-use r2d2_postgres::PostgresConnectionManager;
 use rolodex_grpc::proto::server;
 use std::fs::File;
 use std::io::BufReader;
@@ -78,31 +76,25 @@ fn get_tls_config() -> TlsAcceptor {
     TlsAcceptor::from(Arc::new(tls_config))
 }
 
-fn get_db_pool() -> r2d2_postgres::r2d2::Pool<
-    r2d2_postgres::PostgresConnectionManager<r2d2_postgres::postgres::NoTls>,
-> {
-    let manager = PostgresConnectionManager::new(
-        format!(
-            "host={} port={} user={} password={}",
-            config::CONFIG.database.host,
-            config::CONFIG.database.port,
-            config::CONFIG.database.username,
-            config::CONFIG.database.password,
-        )
-        .parse()
-        .unwrap(),
-        NoTls,
-    );
+fn get_db_pool() -> diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>> {
+    use diesel::pg::PgConnection;
+    use diesel::r2d2::{ConnectionManager, Pool};
 
-    let db_pool = r2d2_postgres::r2d2::Pool::builder()
+    let manager = ConnectionManager::<PgConnection>::new(format!(
+        "postgres://{}:{}@{}:{}/",
+        config::CONFIG.database.username,
+        config::CONFIG.database.password,
+        config::CONFIG.database.host,
+        config::CONFIG.database.port,
+    ));
+
+    let db_pool = Pool::builder()
         .max_size(config::CONFIG.database.connection_pool_size)
         .build(manager)
         .expect("Unable to create DB connection pool");
 
-    let mut client = db_pool.get().unwrap();
-    client
-        .execute("SELECT 1", &[])
-        .expect("Unable to execute test query");
+    let conn = db_pool.get();
+    assert!(conn.is_ok());
 
     db_pool
 }

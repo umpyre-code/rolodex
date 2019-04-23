@@ -1,22 +1,23 @@
 table! {
     unique_email_addresses (id) {
         id -> Int4,
-        user_id -> Nullable<Int4>,
-        created_at -> Nullable<Timestamp>,
-        updated_at -> Nullable<Timestamp>,
-        email_as_entered -> Nullable<Varchar>,
-        email_without_labels -> Nullable<Varchar>,
+        user_id -> Int4,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        email_as_entered -> Text,
+        email_without_labels -> Text,
     }
 }
 
 table! {
     users (id) {
         id -> Int4,
-        uuid -> Nullable<Uuid>,
-        created_at -> Nullable<Timestamp>,
-        updated_at -> Nullable<Timestamp>,
-        full_name -> Nullable<Varchar>,
-        password_hash -> Nullable<Varchar>,
+        uuid -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        full_name -> Text,
+        password_hash -> Text,
+        phone_number -> Text,
     }
 }
 

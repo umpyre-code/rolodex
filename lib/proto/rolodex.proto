@@ -9,9 +9,9 @@ service Rolodex {
 
 message NewUserRequest {
   string full_name = 1;
-  string phone_number = 2;
+  string password_hash = 2;
   string email = 3;
-  string password_hash = 4;
+  string phone_number = 4;
 }
 
 enum Error {
@@ -19,6 +19,7 @@ enum Error {
   InvalidEmail = 1;
   LowQualityPassword = 2;
   BadCredentials = 3;
+  DatabaseError = 4;
 }
 
 message NewUserResponse {
