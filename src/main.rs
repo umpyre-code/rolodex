@@ -18,6 +18,7 @@ extern crate instrumented;
 extern crate r2d2_redis;
 extern crate regex;
 extern crate rolodex_grpc;
+extern crate trust_dns;
 extern crate tokio_rustls;
 extern crate toml;
 extern crate tower_grpc;

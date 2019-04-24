@@ -1,4 +1,5 @@
 use instrumented::instrument;
+use r2d2_redis::redis;
 use regex::Regex;
 use std::str::FromStr;
 
@@ -11,17 +12,54 @@ lazy_static! {
 pub enum EmailError {
     #[fail(display = "invalid email address (bad format): {}", email)]
     BadFormat { email: String },
+    #[fail(display = "invalid email domain (banned domain): {}", email)]
+    BannedDomain { email: String },
+    #[fail(
+        display = "invalid email domain suffix (not in public suffix list): {}",
+        email
+    )]
+    InvalidSuffix { email: String },
+    #[fail(display = "database error: {}", err)]
+    DatabaseError { err: String },
+    #[fail(display = "invalid domain (DNS error): {}", email)]
+    InvalidDomain { email: String },
+    #[fail(display = "DNS resolution error: {}", err)]
+    DNSFailure { err: String },
 }
 
 /// Represents a valid email address.
 #[derive(Debug, Clone)]
 pub struct Email {
-    email_as_entered: String,
-    email_without_labels: String,
+    pub email_as_entered: String,
+    pub email_without_labels: String,
     inbox: String,
     user: String,
     label: String,
     domain: String,
+}
+
+impl From<r2d2_redis::redis::RedisError> for EmailError {
+    fn from(err: r2d2_redis::redis::RedisError) -> EmailError {
+        EmailError::DatabaseError {
+            err: format!("{}", err),
+        }
+    }
+}
+
+impl From<std::net::AddrParseError> for EmailError {
+    fn from(err: std::net::AddrParseError) -> EmailError {
+        EmailError::DNSFailure {
+            err: format!("{}", err),
+        }
+    }
+}
+
+impl From<trust_dns::error::ClientError> for EmailError {
+    fn from(err: trust_dns::error::ClientError) -> EmailError {
+        EmailError::DNSFailure {
+            err: format!("{}", err),
+        }
+    }
 }
 
 impl FromStr for Email {
@@ -55,8 +93,50 @@ impl FromStr for Email {
 
 impl Email {
     #[instrument(INFO)]
-    fn is_valid(&self) -> Result<(), EmailError> {
-        Ok(())
+    pub fn check_validity(
+        &self,
+        redis_conn: &r2d2_redis::redis::Connection,
+    ) -> Result<(), EmailError> {
+        use r2d2_redis::redis::PipelineCommands;
+        use std::str::FromStr;
+        use trust_dns::client::{Client, SyncClient};
+        use trust_dns::rr::{DNSClass, Name, RecordType};
+        use trust_dns::udp::UdpClientConnection;
+
+        let (is_banned_email_domain, in_public_suffix_list): (bool, bool) = redis::pipe()
+            .sismember("banned_email_domains", &self.domain)
+            .sismember("public_suffix_list", &self.domain)
+            .query(redis_conn)?;
+
+        // Check domain is resolvable
+        let dns_server = "8.8.8.8:53".parse()?;
+        let conn = UdpClientConnection::new(dns_server)?;
+        let client = SyncClient::new(conn);
+
+        // Specify the name, note the final '.' which specifies it's an FQDN
+        let name = Name::from_str(&format!("{}.", &self.domain)).unwrap();
+
+        // NOTE: see 'Setup a connection' example above
+        // Send the query and get a message response, see RecordType for all supported options
+        let response = client.query(&name, DNSClass::IN, RecordType::MX)?;
+        let answers = response.answers();
+        let dns_valid = !answers.is_empty();
+
+        if is_banned_email_domain {
+            Err(EmailError::BannedDomain {
+                email: self.email_as_entered.clone(),
+            })
+        } else if in_public_suffix_list {
+            Err(EmailError::InvalidSuffix {
+                email: self.email_as_entered.clone(),
+            })
+        } else if !dns_valid {
+            Err(EmailError::InvalidDomain {
+                email: self.email_as_entered.clone(),
+            })
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -69,13 +149,11 @@ mod tests {
     fn test_regex() {
         let cap1 = EMAIL_RE.captures("brenden@brndn.io").unwrap();
 
-        println!("{:?}", cap1);
         assert_eq!("brenden", &cap1["inbox"]);
         assert_eq!("brndn.io", &cap1["domain"]);
 
         let cap2 = EMAIL_RE.captures("brenden+lol@brndn.io").unwrap();
 
-        println!("{:?}", cap2);
         assert_eq!("brenden+lol", &cap2["inbox"]);
         assert_eq!("brndn.io", &cap2["domain"]);
     }
@@ -119,7 +197,6 @@ mod tests {
         assert_eq!(email.email_without_labels, "brenden@brndn.io");
     }
 
-
     #[test]
     fn test_into_with_missing_label() {
         let addr = "brenden+@brndn.io";
@@ -139,5 +216,44 @@ mod tests {
         let result: Result<Email, EmailError> = addr.parse();
 
         assert_eq!(result.is_err(), true);
+    }
+
+    #[test]
+    fn test_validation() {
+        let client = redis::Client::open("redis://127.0.0.1/").unwrap();
+        let redis_conn = client.get_connection().unwrap();
+        assert_eq!(redis_conn.is_open(), true);
+
+        assert_eq!(
+            Email::from_str("brenden@brndn.io")
+                .unwrap()
+                .check_validity(&redis_conn)
+                .is_ok(),
+            true
+        );
+
+        assert_eq!(
+            Email::from_str("brenden@com")
+                .unwrap()
+                .check_validity(&redis_conn)
+                .is_err(),
+            true
+        );
+
+        assert_eq!(
+            Email::from_str("brenden@mailinator.com")
+                .unwrap()
+                .check_validity(&redis_conn)
+                .is_err(),
+            true
+        );
+
+        assert_eq!(
+            Email::from_str("brenden@lolnotactuallyarealdomainthatexists.com")
+                .unwrap()
+                .check_validity(&redis_conn)
+                .is_err(),
+            true
+        );
     }
 }

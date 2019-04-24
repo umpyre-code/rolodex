@@ -1,3 +1,4 @@
+use email;
 use futures::future;
 use instrumented::instrument;
 use rolodex_grpc::proto::{
@@ -24,12 +25,35 @@ enum RequestError {
     BadCredentials,
     #[fail(display = "database error: {}", err)]
     DatabaseError { err: String },
+    #[fail(display = "email domain DNS failure: {}", err)]
+    EmailDNSFailure { err: String },
 }
 
 impl From<diesel::result::Error> for RequestError {
     fn from(err: diesel::result::Error) -> RequestError {
         RequestError::DatabaseError {
             err: format!("{}", err),
+        }
+    }
+}
+
+impl From<r2d2_redis::r2d2::Error> for RequestError {
+    fn from(err: r2d2_redis::r2d2::Error) -> RequestError {
+        RequestError::DatabaseError {
+            err: format!("{}", err),
+        }
+    }
+}
+
+impl From<email::EmailError> for RequestError {
+    fn from(err: email::EmailError) -> RequestError {
+        match err {
+            email::EmailError::BadFormat { email } => RequestError::InvalidEmail { email },
+            email::EmailError::BannedDomain { email } => RequestError::InvalidEmail { email },
+            email::EmailError::InvalidSuffix { email } => RequestError::InvalidEmail { email },
+            email::EmailError::DatabaseError { err } => RequestError::DatabaseError { err },
+            email::EmailError::InvalidDomain { email } => RequestError::InvalidEmail { email },
+            email::EmailError::DNSFailure { err } => RequestError::EmailDNSFailure { err },
         }
     }
 }
@@ -48,6 +72,7 @@ impl From<RequestError> for i32 {
                 rolodex_grpc::proto::Error::BadCredentials as i32
             }
             RequestError::DatabaseError { .. } => rolodex_grpc::proto::Error::DatabaseError as i32,
+            RequestError::EmailDNSFailure { .. } => rolodex_grpc::proto::Error::EmailDnsFailure as i32,
         }
     }
 }
@@ -76,6 +101,7 @@ impl Rolodex {
         use crate::schema::{unique_email_addresses, users};
         use diesel::prelude::*;
         use diesel::result::Error;
+        use email::Email;
 
         let new_user = NewUser {
             full_name: request.full_name.clone(),
@@ -83,8 +109,12 @@ impl Rolodex {
             phone_number: request.phone_number.clone(),
         };
 
-        let email_as_entered = request.email.clone();
-        let email_without_labels = request.email.clone();
+        let email: Email = request.email.parse()?;
+        let redis_conn = self.redis_pool.get()?;
+        email.check_validity(&*redis_conn)?;
+
+        let email_as_entered = email.email_as_entered.clone();
+        let email_without_labels = email.email_without_labels.clone();
 
         let conn = self.db_pool.get().unwrap();
 

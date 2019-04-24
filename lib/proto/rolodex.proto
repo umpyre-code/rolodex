@@ -20,6 +20,7 @@ enum Error {
   LowQualityPassword = 2;
   BadCredentials = 3;
   DatabaseError = 4;
+  EmailDNSFailure = 5;
 }
 
 message NewUserResponse {

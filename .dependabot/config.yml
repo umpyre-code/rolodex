@@ -5,7 +5,7 @@ update_configs:
     update_schedule: "live"
 
     default_reviewers:
-        - "brndnmtthws"
+      - "brndnmtthws"
 
     automerged_updates:
       - match:
@@ -19,7 +19,21 @@ update_configs:
     update_schedule: "live"
 
     default_reviewers:
-        - "brndnmtthws"
+      - "brndnmtthws"
+
+    automerged_updates:
+      - match:
+          dependency_type: "development"
+          update_type: "all"
+      - match:
+          dependency_type: "production"
+          update_type: "security:patch"
+  - package_manager: "rust:cargo"
+    directory: "/tools/loader"
+    update_schedule: "live"
+
+    default_reviewers:
+      - "brndnmtthws"
 
     automerged_updates:
       - match:
