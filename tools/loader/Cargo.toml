@@ -5,9 +5,11 @@ authors = ["Brenden Matthews <brenden@diddyinc.com>"]
 edition = "2018"
 
 [dependencies]
+data-encoding = "2"
 env_logger = "0.6"
+failure = "0.1"
 log = "0.4"
 redis = "0.10"
 reqwest = "0.9"
+ring = "0.14"
 url = "1.7"
-failure = "0.1"

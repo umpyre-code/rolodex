@@ -1,5 +1,7 @@
+extern crate data_encoding;
 extern crate redis;
 extern crate reqwest;
+extern crate ring;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
@@ -45,6 +47,24 @@ impl From<redis::RedisError> for Error {
     }
 }
 
+fn add_slick_to_set(
+    redis_client: &redis::Client,
+    key: &str,
+    slice: &[String],
+) -> Result<usize, Error> {
+    let con = redis_client.get_connection()?;
+    redis::transaction(&con, &[key], |pipe| {
+        pipe.del(key);
+        slice.iter().for_each(|item| {
+            pipe.sadd(key, item);
+        });
+        pipe.query(&con)
+    })?;
+    let member_count: usize = con.scard(key)?;
+
+    Ok(member_count)
+}
+
 fn parse_public_suffix_list(list: String) -> Vec<String> {
     list.lines()
         .map(str::trim) // trim leading/trailing whitespace
@@ -66,15 +86,8 @@ fn update_public_suffix_list(
         parse_public_suffix_list(reqwest_client.get(public_suffix_url).send()?.text()?);
     info!("Read {} domains", public_suffix_list.len());
 
-    let con = redis_client.get_connection()?;
-    let mut pipe = redis::pipe();
-    pipe.atomic().del("public_suffix_list");
-    public_suffix_list.iter().for_each(|domain| {
-        pipe.sadd("public_suffix_list", domain);
-    });
-    pipe.execute(&con);
+    let member_count = add_slick_to_set(redis_client, "public_suffix_list", &public_suffix_list)?;
 
-    let member_count: usize = con.scard("public_suffix_list").unwrap();
     info!("Read {} members out of redis set", member_count);
     assert_eq!(public_suffix_list.len(), member_count);
 
@@ -100,17 +113,50 @@ fn update_banned_domains_list(
         parse_banned_domains_list(reqwest_client.get(banned_domains_url).send()?.text()?);
     info!("Read {} domains", banned_domains_list.len());
 
-    let con = redis_client.get_connection()?;
-    let mut pipe = redis::pipe();
-    pipe.atomic().del("banned_email_domains");
-    banned_domains_list.iter().for_each(|domain| {
-        pipe.sadd("banned_email_domains", domain);
-    });
-    pipe.execute(&con);
+    let member_count =
+        add_slick_to_set(redis_client, "banned_email_domains", &banned_domains_list)?;
 
-    let member_count: usize = con.scard("banned_email_domains").unwrap();
     info!("Read {} members out of redis set", member_count);
     assert_eq!(banned_domains_list.len(), member_count);
+
+    Ok(())
+}
+
+fn parse_banned_passwords_list(list: String) -> Vec<String> {
+    use ring::digest;
+
+    list.lines()
+        .map(str::trim) // trim leading/trailing whitespace
+        .filter(|s| !s.is_empty()) // remove empty lines
+        .map(|s| {
+            let digest = digest::digest(&digest::SHA256, s.as_bytes());
+            data_encoding::HEXLOWER_PERMISSIVE.encode(digest.as_ref())
+        })
+        .collect()
+}
+
+fn update_banned_password_hashes_list(
+    reqwest_client: &reqwest::Client,
+    redis_client: &redis::Client,
+) -> Result<(), Error> {
+    let banned_passwords_url = Url::parse("https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt")?;
+    info!(
+        "Fetching banned passwords list from {}",
+        banned_passwords_url
+    );
+
+    let banned_password_hashes_list =
+        parse_banned_passwords_list(reqwest_client.get(banned_passwords_url).send()?.text()?);
+    info!("Read {} passwords", banned_password_hashes_list.len());
+
+    let member_count = add_slick_to_set(
+        redis_client,
+        "banned_password_hashes",
+        &banned_password_hashes_list,
+    )?;
+
+    info!("Read {} members out of redis set", member_count);
+    assert_eq!(banned_password_hashes_list.len(), member_count);
 
     Ok(())
 }
@@ -125,6 +171,7 @@ fn main() -> Result<(), Error> {
 
     update_public_suffix_list(&reqwest_client, &redis_client)?;
     update_banned_domains_list(&reqwest_client, &redis_client)?;
+    update_banned_password_hashes_list(&reqwest_client, &redis_client)?;
 
     Ok(())
 }
