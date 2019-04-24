@@ -72,7 +72,9 @@ impl From<RequestError> for i32 {
                 rolodex_grpc::proto::Error::BadCredentials as i32
             }
             RequestError::DatabaseError { .. } => rolodex_grpc::proto::Error::DatabaseError as i32,
-            RequestError::EmailDNSFailure { .. } => rolodex_grpc::proto::Error::EmailDnsFailure as i32,
+            RequestError::EmailDNSFailure { .. } => {
+                rolodex_grpc::proto::Error::EmailDnsFailure as i32
+            }
         }
     }
 }
@@ -109,7 +111,7 @@ impl Rolodex {
             phone_number: request.phone_number.clone(),
         };
 
-        let email: Email = request.email.parse()?;
+        let email: Email = request.email.to_lowercase().parse()?;
         let redis_conn = self.redis_pool.get()?;
         email.check_validity(&*redis_conn)?;
 
@@ -117,7 +119,6 @@ impl Rolodex {
         let email_without_labels = email.email_without_labels.clone();
 
         let conn = self.db_pool.get().unwrap();
-
         let user = conn.transaction::<_, Error, _>(|| {
             let user: User = diesel::insert_into(users::table)
                 .values(&new_user)

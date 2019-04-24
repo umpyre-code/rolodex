@@ -1,3 +1,4 @@
+extern crate data_encoding;
 extern crate env_logger;
 extern crate futures;
 #[macro_use]
@@ -18,16 +19,17 @@ extern crate instrumented;
 extern crate r2d2_redis;
 extern crate regex;
 extern crate rolodex_grpc;
-extern crate trust_dns;
 extern crate tokio_rustls;
 extern crate toml;
 extern crate tower_grpc;
+extern crate trust_dns;
 extern crate url;
 extern crate yansi;
 
 mod config;
 mod email;
 mod models;
+mod password_hash;
 mod schema;
 mod service;
 
