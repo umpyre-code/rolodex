@@ -21,6 +21,8 @@ enum Error {
     Reqwest { err: String },
     #[fail(display = "redis error: {}", err)]
     Redis { err: String },
+    #[fail(display = "bad arguments")]
+    BadArgs,
 }
 
 impl From<url::ParseError> for Error {
@@ -162,12 +164,21 @@ fn update_banned_password_hashes_list(
 }
 
 fn main() -> Result<(), Error> {
+    use std::env;
+
     env_logger::init();
 
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        error!("Usage: loader <redis addr>");
+        return Err(Error::BadArgs);
+    }
+
     info!("Starting up");
+    info!("args: {:?}", args);
 
     let reqwest_client = reqwest::Client::new();
-    let redis_client = redis::Client::open("redis://127.0.0.1/")?;
+    let redis_client = redis::Client::open(&format!("redis://{}/", args[1])[..])?;
 
     update_public_suffix_list(&reqwest_client, &redis_client)?;
     update_banned_domains_list(&reqwest_client, &redis_client)?;
