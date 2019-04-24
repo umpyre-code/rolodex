@@ -9,6 +9,7 @@ use tower_grpc::{Request, Response};
 #[derive(Clone)]
 pub struct Rolodex {
     db_pool: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
+    redis_pool: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
 }
 
 #[derive(Debug, Fail)]
@@ -54,8 +55,12 @@ impl From<RequestError> for i32 {
 impl Rolodex {
     pub fn new(
         db_pool: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
+        redis_pool: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
     ) -> Self {
-        Rolodex { db_pool }
+        Rolodex {
+            db_pool,
+            redis_pool,
+        }
     }
 
     /// Returns the user_id for this user if auth succeeds

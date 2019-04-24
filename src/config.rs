@@ -10,6 +10,7 @@ pub struct Config {
     pub service: Service,
     pub database: Database,
     pub metrics: Metrics,
+    pub redis: Redis,
 }
 
 #[derive(Debug, Deserialize)]
@@ -33,6 +34,11 @@ pub struct Database {
 #[derive(Debug, Deserialize)]
 pub struct Metrics {
     pub bind_to_address: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Redis {
+    pub address: String,
 }
 
 fn get_rolodex_toml_path() -> String {

@@ -1,0 +1,27 @@
+version: '3.7'
+services:
+  psql:
+    image: postgres:11
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password
+    volumes:
+    - pgdata:/var/lib/postgresql/data
+    ports:
+    - 5432:5432
+  # redis-cluster:
+  #   environment:
+  #    IP: 0.0.0.0
+  #    SENTINEL: "true"
+  #    STANDALONE: "false"
+  #   image: grokzen/redis-cluster:latest
+  #   hostname: redis-server
+  #   ports:
+  #     - '7000-7007:7000-7007'
+  #     - '5000-5002:5000-5002'
+  redis-server:
+    image: redis:latest
+    ports:
+      - '6379:6379'
+volumes:
+  pgdata:

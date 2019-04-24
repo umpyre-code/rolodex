@@ -15,18 +15,23 @@ extern crate serde_derive;
 extern crate lazy_static;
 extern crate color_backtrace;
 extern crate instrumented;
+extern crate r2d2_redis;
+extern crate regex;
 extern crate rolodex_grpc;
 extern crate tokio_rustls;
 extern crate toml;
 extern crate tower_grpc;
+extern crate url;
 extern crate yansi;
 
 mod config;
+mod email;
 mod models;
 mod schema;
 mod service;
 
 use futures::{Future, Stream};
+use r2d2_redis::RedisConnectionManager;
 use rolodex_grpc::proto::server;
 use std::fs::File;
 use std::io::BufReader;
@@ -99,6 +104,22 @@ fn get_db_pool() -> diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::p
     db_pool
 }
 
+fn get_redis_pool() -> r2d2_redis::r2d2::Pool<RedisConnectionManager> {
+    use url::Url;
+    let manager = RedisConnectionManager::new(
+        Url::parse(&format!("redis://{}/", config::CONFIG.redis.address)).unwrap(),
+    )
+    .unwrap();
+    let pool = r2d2_redis::r2d2::Pool::builder()
+        .build(manager)
+        .expect("Unable to create redis connection pool");
+
+    let conn = pool.get();
+    assert!(conn.is_ok());
+
+    pool
+}
+
 pub fn main() {
     color_backtrace::install();
 
@@ -108,7 +129,8 @@ pub fn main() {
 
     instrumented::init(&config::CONFIG.metrics.bind_to_address);
 
-    let new_service = server::RolodexServer::new(service::Rolodex::new(get_db_pool()));
+    let new_service =
+        server::RolodexServer::new(service::Rolodex::new(get_db_pool(), get_redis_pool()));
 
     let h2_settings = Default::default();
     let h2 = Arc::new(Mutex::new(Server::new(
