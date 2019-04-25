@@ -83,8 +83,6 @@ mod tests {
 
     #[test]
     fn test_into() {
-        use r2d2_redis::redis;
-
         let banned_hash: PasswordHash =
             "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b85"
                 .parse()

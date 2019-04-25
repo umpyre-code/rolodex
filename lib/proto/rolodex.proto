@@ -7,11 +7,16 @@ service Rolodex {
   rpc Authenticate(AuthRequest) returns (AuthResponse) {}
 }
 
+message PhoneNumber {
+  string country = 1; // Two-letter country (CA, US, UK, ...)
+  string number = 2;  // National number
+}
+
 message NewUserRequest {
   string full_name = 1;
   string password_hash = 2;
   string email = 3;
-  string phone_number = 4;
+  PhoneNumber phone_number = 4;
 }
 
 enum Error {

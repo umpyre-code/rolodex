@@ -8,7 +8,7 @@ use yansi::Paint;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub service: Service,
-    pub database: Database,
+    pub database: Databases,
     pub metrics: Metrics,
     pub redis: Redis,
 }
@@ -23,11 +23,18 @@ pub struct Service {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct Databases {
+    pub reader: Database,
+    pub writer: Database,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Database {
     pub host: String,
     pub port: i32,
     pub username: String,
     pub password: String,
+    pub name: String,
     pub connection_pool_size: u32,
 }
 

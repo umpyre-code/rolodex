@@ -16,6 +16,7 @@ extern crate serde_derive;
 extern crate lazy_static;
 extern crate color_backtrace;
 extern crate instrumented;
+extern crate phonenumber;
 extern crate r2d2_redis;
 extern crate regex;
 extern crate rolodex_grpc;
@@ -84,20 +85,19 @@ fn get_tls_config() -> TlsAcceptor {
     TlsAcceptor::from(Arc::new(tls_config))
 }
 
-fn get_db_pool() -> diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>> {
+fn get_db_pool(
+    database: &config::Database,
+) -> diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>> {
     use diesel::pg::PgConnection;
     use diesel::r2d2::{ConnectionManager, Pool};
 
     let manager = ConnectionManager::<PgConnection>::new(format!(
-        "postgres://{}:{}@{}:{}/",
-        config::CONFIG.database.username,
-        config::CONFIG.database.password,
-        config::CONFIG.database.host,
-        config::CONFIG.database.port,
+        "postgres://{}:{}@{}:{}/{}",
+        database.username, database.password, database.host, database.port, database.name,
     ));
 
     let db_pool = Pool::builder()
-        .max_size(config::CONFIG.database.connection_pool_size)
+        .max_size(database.connection_pool_size)
         .build(manager)
         .expect("Unable to create DB connection pool");
 
@@ -108,11 +108,9 @@ fn get_db_pool() -> diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::p
 }
 
 fn get_redis_pool() -> r2d2_redis::r2d2::Pool<RedisConnectionManager> {
-    use url::Url;
-    let manager = RedisConnectionManager::new(
-        Url::parse(&format!("redis://{}/", config::CONFIG.redis.address)).unwrap(),
-    )
-    .unwrap();
+    let manager =
+        RedisConnectionManager::new(&format!("redis://{}/", config::CONFIG.redis.address)[..])
+            .unwrap();
     let pool = r2d2_redis::r2d2::Pool::builder()
         .build(manager)
         .expect("Unable to create redis connection pool");
@@ -132,8 +130,11 @@ pub fn main() {
 
     instrumented::init(&config::CONFIG.metrics.bind_to_address);
 
-    let new_service =
-        server::RolodexServer::new(service::Rolodex::new(get_db_pool(), get_redis_pool()));
+    let new_service = server::RolodexServer::new(service::Rolodex::new(
+        get_db_pool(&config::CONFIG.database.reader),
+        get_db_pool(&config::CONFIG.database.writer),
+        get_redis_pool(),
+    ));
 
     let h2_settings = Default::default();
     let h2 = Arc::new(Mutex::new(Server::new(

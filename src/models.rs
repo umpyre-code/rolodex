@@ -6,7 +6,7 @@ use chrono::NaiveDateTime;
 
 #[derive(Queryable, Identifiable)]
 pub struct User {
-    pub id: i32,
+    pub id: i64,
     pub uuid: uuid::Uuid,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -27,8 +27,8 @@ pub struct NewUser {
 #[table_name = "unique_email_addresses"]
 #[belongs_to(User)]
 pub struct UniqueEmailAddress {
-    pub id: i32,
-    pub user_id: i32,
+    pub id: i64,
+    pub user_id: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub email_as_entered: String,
@@ -39,7 +39,7 @@ pub struct UniqueEmailAddress {
 #[table_name = "unique_email_addresses"]
 #[belongs_to(User)]
 pub struct NewUniqueEmailAddress {
-    pub user_id: i32,
+    pub user_id: i64,
     pub email_as_entered: String,
     pub email_without_labels: String,
 }

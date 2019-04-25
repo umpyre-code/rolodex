@@ -1,7 +1,7 @@
 table! {
     unique_email_addresses (id) {
-        id -> Int4,
-        user_id -> Int4,
+        id -> Int8,
+        user_id -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         email_as_entered -> Text,
@@ -11,7 +11,7 @@ table! {
 
 table! {
     users (id) {
-        id -> Int4,
+        id -> Int8,
         uuid -> Uuid,
         created_at -> Timestamp,
         updated_at -> Timestamp,
