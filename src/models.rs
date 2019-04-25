@@ -15,14 +15,6 @@ pub struct User {
     pub phone_number: String,
 }
 
-#[derive(AsChangeset, Insertable)]
-#[table_name = "users"]
-pub struct NewUser {
-    pub full_name: String,
-    pub password_hash: String,
-    pub phone_number: String,
-}
-
 #[derive(Queryable, Associations, Identifiable)]
 #[table_name = "unique_email_addresses"]
 #[belongs_to(User)]

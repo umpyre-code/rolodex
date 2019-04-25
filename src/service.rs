@@ -1,3 +1,5 @@
+use diesel::prelude::*;
+use diesel::sql_types::{Integer, Text};
 use email;
 use futures::future;
 use instrumented::instrument;
@@ -88,6 +90,14 @@ impl From<RequestError> for i32 {
     }
 }
 
+sql_function! {
+    fn crypt(value: Text, salt: Text) -> Text;
+}
+
+sql_function! {
+    fn gen_salt(alg: Text, bits: Integer) -> Text;
+}
+
 impl Rolodex {
     pub fn new(
         db_reader: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
@@ -110,9 +120,8 @@ impl Rolodex {
     /// Returns the user_id for this user if account creation succeeded
     #[instrument(INFO)]
     fn handle_add_user(&self, request: &NewUserRequest) -> Result<String, RequestError> {
-        use crate::models::{NewUniqueEmailAddress, NewUser, User};
+        use crate::models::{NewUniqueEmailAddress, User};
         use crate::schema::{unique_email_addresses, users};
-        use diesel::prelude::*;
         use diesel::result::Error;
         use email::Email;
 
@@ -132,15 +141,6 @@ impl Rolodex {
             });
         };
 
-        let new_user = NewUser {
-            full_name: request.full_name.clone(),
-            password_hash: request.password_hash.clone(),
-            phone_number: number
-                .format()
-                .mode(phonenumber::Mode::International)
-                .to_string(),
-        };
-
         let email: Email = request.email.to_lowercase().parse()?;
         let redis_conn = self.redis_pool.get()?;
         email.check_validity(&*redis_conn)?;
@@ -151,7 +151,15 @@ impl Rolodex {
         let conn = self.db_writer.get().unwrap();
         let user = conn.transaction::<_, Error, _>(|| {
             let user: User = diesel::insert_into(users::table)
-                .values(&new_user)
+                .values(&vec![(
+                    users::dsl::full_name.eq(request.full_name.clone()),
+                    users::dsl::password_hash
+                        .eq(crypt(request.password_hash.clone(), gen_salt("bf", 8))),
+                    users::dsl::phone_number.eq(number
+                        .format()
+                        .mode(phonenumber::Mode::International)
+                        .to_string()),
+                )])
                 .get_result(&conn)?;
 
             let new_unique_email_address = NewUniqueEmailAddress {
@@ -220,7 +228,6 @@ mod tests {
         diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
         r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
     ) {
-        use diesel::pg::PgConnection;
         use diesel::r2d2::{ConnectionManager, Pool};
         let pg_manager = ConnectionManager::<PgConnection>::new(
             "postgres://postgres:password@127.0.0.1:5432/umpyre",
@@ -244,21 +251,34 @@ mod tests {
 
         let conn = db_pool.get().unwrap();
 
-        diesel::delete(unique_email_addresses::table)
-            .execute(&conn)
-            .unwrap();
-        diesel::delete(users::table).execute(&conn).unwrap();
-
         macro_rules! empty_tables {
                 ( $( $x:ident ),* ) => {
                 $(
+                    diesel::delete($x::table).execute(&conn).unwrap();
                     assert_eq!(Ok(0), $x::table.select(count($x::id)).first(&conn));
                 )*
             };
         }
 
-        empty_tables![users, unique_email_addresses];
+        empty_tables![unique_email_addresses, users];
+    }
 
+    fn email_in_table(
+        db_pool: &diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
+        email: &str,
+    ) -> bool {
+        use crate::schema::unique_email_addresses;
+        use diesel::dsl::*;
+        use diesel::prelude::*;
+
+        let conn = db_pool.get().unwrap();
+
+        let count: i64 = unique_email_addresses::table
+            .select(count(unique_email_addresses::id))
+            .filter(unique_email_addresses::email_as_entered.eq(email))
+            .first(&conn)
+            .unwrap();
+        count > 0
     }
 
     #[test]
@@ -281,6 +301,7 @@ mod tests {
                 .into(),
         });
         assert_eq!(result.is_ok(), true);
+        assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
     }
 
     #[test]
@@ -303,6 +324,7 @@ mod tests {
                 .into(),
         });
         assert_eq!(result.is_ok(), true);
+        assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
 
         let result = rolodex.handle_add_user(&NewUserRequest {
             full_name: "Bob Marley".into(),
@@ -337,6 +359,7 @@ mod tests {
                 .into(),
         });
         assert_eq!(result.is_ok(), true);
+        assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
 
         let result = rolodex.handle_add_user(&NewUserRequest {
             full_name: "Bob Marley".into(),
@@ -349,5 +372,6 @@ mod tests {
                 .into(),
         });
         assert_eq!(result.is_err(), true);
+        assert_eq!(email_in_table(&db_pool, "bob2@aol.com"), false);
     }
 }
