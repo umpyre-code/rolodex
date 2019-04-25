@@ -49,8 +49,6 @@ use tokio_rustls::rustls::{
 use tokio_rustls::TlsAcceptor;
 use tower_h2::Server;
 
-// use models::*;
-
 fn load_certs(path: &str) -> Vec<Certificate> {
     certs(&mut BufReader::new(
         File::open(path).expect("Couldn't open file"),
@@ -107,10 +105,8 @@ fn get_db_pool(
     db_pool
 }
 
-fn get_redis_pool() -> r2d2_redis::r2d2::Pool<RedisConnectionManager> {
-    let manager =
-        RedisConnectionManager::new(&format!("redis://{}/", config::CONFIG.redis.address)[..])
-            .unwrap();
+fn get_redis_pool(redis: &config::Redis) -> r2d2_redis::r2d2::Pool<RedisConnectionManager> {
+    let manager = RedisConnectionManager::new(&format!("redis://{}/", redis.address)[..]).unwrap();
     let pool = r2d2_redis::r2d2::Pool::builder()
         .build(manager)
         .expect("Unable to create redis connection pool");
@@ -133,7 +129,8 @@ pub fn main() {
     let new_service = server::RolodexServer::new(service::Rolodex::new(
         get_db_pool(&config::CONFIG.database.reader),
         get_db_pool(&config::CONFIG.database.writer),
-        get_redis_pool(),
+        get_redis_pool(&config::CONFIG.redis.reader),
+        get_redis_pool(&config::CONFIG.redis.writer),
     ));
 
     let h2_settings = Default::default();

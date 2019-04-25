@@ -10,7 +10,7 @@ pub struct Config {
     pub service: Service,
     pub database: Databases,
     pub metrics: Metrics,
-    pub redis: Redis,
+    pub redis: Redises,
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,6 +41,12 @@ pub struct Database {
 #[derive(Debug, Deserialize)]
 pub struct Metrics {
     pub bind_to_address: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Redises {
+    pub reader: Redis,
+    pub writer: Redis,
 }
 
 #[derive(Debug, Deserialize)]

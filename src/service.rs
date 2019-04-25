@@ -2,18 +2,33 @@ use diesel::prelude::*;
 use diesel::sql_types::{Integer, Text};
 use email;
 use futures::future;
-use instrumented::instrument;
+use instrumented::{instrument, prometheus, register};
 use rolodex_grpc::proto::{
     auth_response, new_user_response, server, AuthRequest, AuthResponse, NewUserRequest,
     NewUserResponse,
 };
 use tower_grpc::{Request, Response};
 
+lazy_static! {
+    static ref USER_ADDED: prometheus::IntCounter = {
+        let counter = prometheus::IntCounter::new("new_user_added", "New user added").unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref USER_AUTHED: prometheus::IntCounter = {
+        let counter =
+            prometheus::IntCounter::new("user_authed", "User authenticated successfully").unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+}
+
 #[derive(Clone)]
 pub struct Rolodex {
     db_reader: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
     db_writer: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
-    redis_pool: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
+    redis_reader: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
+    redis_writer: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
 }
 
 #[derive(Debug, Fail)]
@@ -113,12 +128,14 @@ impl Rolodex {
     pub fn new(
         db_reader: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
         db_writer: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
-        redis_pool: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
+        redis_reader: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
+        redis_writer: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
     ) -> Self {
         Rolodex {
             db_reader,
             db_writer,
-            redis_pool,
+            redis_reader,
+            redis_writer,
         }
     }
 
@@ -144,6 +161,7 @@ impl Rolodex {
             )
             .first(&conn)?;
 
+        USER_AUTHED.inc();
         Ok(uuid.to_simple().to_string())
     }
 
@@ -172,7 +190,7 @@ impl Rolodex {
         };
 
         let email: Email = request.email.to_lowercase().parse()?;
-        let redis_conn = self.redis_pool.get()?;
+        let redis_conn = self.redis_reader.get()?;
         email.check_validity(&*redis_conn)?;
 
         let email_as_entered = email.email_as_entered.clone();
@@ -205,6 +223,7 @@ impl Rolodex {
             Ok(user)
         })?;
 
+        USER_ADDED.inc();
         Ok(user.uuid.to_simple().to_string())
     }
 }
@@ -318,7 +337,12 @@ mod tests {
         let (db_pool, redis_pool) = get_pools();
         empty_tables(&db_pool);
 
-        let rolodex = Rolodex::new(db_pool.clone(), db_pool.clone(), redis_pool);
+        let rolodex = Rolodex::new(
+            db_pool.clone(),
+            db_pool.clone(),
+            redis_pool.clone(),
+            redis_pool.clone(),
+        );
 
         let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
 
@@ -351,7 +375,12 @@ mod tests {
         let (db_pool, redis_pool) = get_pools();
         empty_tables(&db_pool);
 
-        let rolodex = Rolodex::new(db_pool.clone(), db_pool.clone(), redis_pool);
+        let rolodex = Rolodex::new(
+            db_pool.clone(),
+            db_pool.clone(),
+            redis_pool.clone(),
+            redis_pool.clone(),
+        );
 
         let user_id = "e9f272e503ff4b73891e77c766e8a251";
         let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
@@ -370,7 +399,12 @@ mod tests {
         let (db_pool, redis_pool) = get_pools();
         empty_tables(&db_pool);
 
-        let rolodex = Rolodex::new(db_pool.clone(), db_pool.clone(), redis_pool);
+        let rolodex = Rolodex::new(
+            db_pool.clone(),
+            db_pool.clone(),
+            redis_pool.clone(),
+            redis_pool.clone(),
+        );
 
         let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
 
@@ -415,7 +449,12 @@ mod tests {
         let (db_pool, redis_pool) = get_pools();
         empty_tables(&db_pool);
 
-        let rolodex = Rolodex::new(db_pool.clone(), db_pool.clone(), redis_pool);
+        let rolodex = Rolodex::new(
+            db_pool.clone(),
+            db_pool.clone(),
+            redis_pool.clone(),
+            redis_pool.clone(),
+        );
 
         let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
 
