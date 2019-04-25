@@ -249,13 +249,16 @@ mod tests {
             .unwrap();
         diesel::delete(users::table).execute(&conn).unwrap();
 
-        assert_eq!(Ok(0), users::table.select(count(users::id)).first(&conn));
-        assert_eq!(
-            Ok(0),
-            unique_email_addresses::table
-                .select(count(unique_email_addresses::id))
-                .first(&conn)
-        );
+        macro_rules! empty_tables {
+                ( $( $x:ident ),* ) => {
+                $(
+                    assert_eq!(Ok(0), $x::table.select(count($x::id)).first(&conn));
+                )*
+            };
+        }
+
+        empty_tables![users, unique_email_addresses];
+
     }
 
     #[test]
