@@ -30,6 +30,8 @@ enum RequestError {
     DatabaseError { err: String },
     #[fail(display = "email domain DNS failure: {}", err)]
     EmailDNSFailure { err: String },
+    #[fail(display = "invalid user_id: {}", err)]
+    InvalidUserId { err: String },
 }
 
 impl From<diesel::result::Error> for RequestError {
@@ -69,6 +71,14 @@ impl From<email::EmailError> for RequestError {
     }
 }
 
+impl From<uuid::parser::ParseError> for RequestError {
+    fn from(err: uuid::parser::ParseError) -> RequestError {
+        RequestError::InvalidUserId {
+            err: format!("{}", err),
+        }
+    }
+}
+
 impl From<RequestError> for i32 {
     fn from(err: RequestError) -> Self {
         match err {
@@ -86,6 +96,7 @@ impl From<RequestError> for i32 {
             RequestError::EmailDNSFailure { .. } => {
                 rolodex_grpc::proto::Error::EmailDnsFailure as i32
             }
+            RequestError::InvalidUserId { .. } => rolodex_grpc::proto::Error::InvalidUserId as i32,
         }
     }
 }
@@ -113,8 +124,27 @@ impl Rolodex {
 
     /// Returns the user_id for this user if auth succeeds
     #[instrument(INFO)]
-    fn handle_authenticate(&self, _request: &AuthRequest) -> Result<String, RequestError> {
-        Ok("handle_authenticate".to_string())
+    fn handle_authenticate(&self, request: &AuthRequest) -> Result<String, RequestError> {
+        use crate::schema::users;
+        use diesel::prelude::*;
+
+        let request_uuid = uuid::Uuid::parse_str(&request.user_id)?;
+
+        let conn = self.db_reader.get().unwrap();
+
+        let uuid: uuid::Uuid = users::table
+            .select(users::uuid)
+            .filter(
+                users::dsl::password_hash
+                    .eq(crypt(
+                        request.password_hash.clone(),
+                        users::dsl::password_hash,
+                    ))
+                    .and(users::dsl::uuid.eq(&request_uuid)),
+            )
+            .first(&conn)?;
+
+        Ok(uuid.to_simple().to_string())
     }
 
     /// Returns the user_id for this user if account creation succeeded
@@ -290,6 +320,8 @@ mod tests {
 
         let rolodex = Rolodex::new(db_pool.clone(), db_pool.clone(), redis_pool);
 
+        let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+
         let result = rolodex.handle_add_user(&NewUserRequest {
             full_name: "Bob Marley".into(),
             email: "bob@aol.com".into(),
@@ -297,11 +329,38 @@ mod tests {
                 country: "US".into(),
                 number: "4013213952".into(),
             }),
-            password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
-                .into(),
+            password_hash: pw_hash.into(),
         });
         assert_eq!(result.is_ok(), true);
         assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+
+        let user_id = result.unwrap();
+
+        let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            user_id: user_id.to_string(),
+            password_hash: pw_hash.into(),
+        });
+        assert_eq!(auth_result.is_ok(), true);
+        assert_eq!(auth_result.unwrap(), user_id);
+    }
+
+    #[test]
+    fn test_user_invalid_auth() {
+        let _lock = LOCK.lock().unwrap();
+
+        let (db_pool, redis_pool) = get_pools();
+        empty_tables(&db_pool);
+
+        let rolodex = Rolodex::new(db_pool.clone(), db_pool.clone(), redis_pool);
+
+        let user_id = "e9f272e503ff4b73891e77c766e8a251";
+        let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+
+        let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            user_id: user_id.to_string(),
+            password_hash: pw_hash.into(),
+        });
+        assert_eq!(auth_result.is_err(), true);
     }
 
     #[test]
@@ -313,6 +372,8 @@ mod tests {
 
         let rolodex = Rolodex::new(db_pool.clone(), db_pool.clone(), redis_pool);
 
+        let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+
         let result = rolodex.handle_add_user(&NewUserRequest {
             full_name: "Bob Marley".into(),
             email: "bob@aol.com".into(),
@@ -320,11 +381,19 @@ mod tests {
                 country: "US".into(),
                 number: "4013213953".into(),
             }),
-            password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
-                .into(),
+            password_hash: pw_hash.into(),
         });
         assert_eq!(result.is_ok(), true);
         assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+
+        let user_id = result.unwrap();
+
+        let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            user_id: user_id.to_string(),
+            password_hash: pw_hash.into(),
+        });
+        assert_eq!(auth_result.is_ok(), true);
+        assert_eq!(auth_result.unwrap(), user_id);
 
         let result = rolodex.handle_add_user(&NewUserRequest {
             full_name: "Bob Marley".into(),
@@ -348,6 +417,8 @@ mod tests {
 
         let rolodex = Rolodex::new(db_pool.clone(), db_pool.clone(), redis_pool);
 
+        let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+
         let result = rolodex.handle_add_user(&NewUserRequest {
             full_name: "Bob Marley".into(),
             email: "bob@aol.com".into(),
@@ -355,11 +426,19 @@ mod tests {
                 country: "US".into(),
                 number: "4013213953".into(),
             }),
-            password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
-                .into(),
+            password_hash: pw_hash.into(),
         });
         assert_eq!(result.is_ok(), true);
         assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+
+        let user_id = result.unwrap();
+
+        let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            user_id: user_id.to_string(),
+            password_hash: pw_hash.into(),
+        });
+        assert_eq!(auth_result.is_ok(), true);
+        assert_eq!(auth_result.unwrap(), user_id);
 
         let result = rolodex.handle_add_user(&NewUserRequest {
             full_name: "Bob Marley".into(),

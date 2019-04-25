@@ -26,6 +26,7 @@ enum Error {
   BadCredentials = 3;
   DatabaseError = 4;
   EmailDNSFailure = 5;
+  InvalidUserId = 6;
 }
 
 message NewUserResponse {
