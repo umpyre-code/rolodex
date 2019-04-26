@@ -25,7 +25,6 @@ serde_derive = "1.0"
 tokio = "0.1"
 tokio-rustls = "0.9"
 toml = "0.5"
-tower-grpc = { git = "https://github.com/tower-rs/tower-grpc" }
 tower-h2 = { git = "https://github.com/tower-rs/tower-h2" }
 tower-request-modifier = { git = "https://github.com/tower-rs/tower-http" }
 tower-service = "0.2"

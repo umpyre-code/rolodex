@@ -7,7 +7,7 @@ use rolodex_grpc::proto::{
     auth_response, new_user_response, server, AuthRequest, AuthResponse, NewUserRequest,
     NewUserResponse,
 };
-use tower_grpc::{Request, Response};
+use rolodex_grpc::tower_grpc::{Request, Response};
 
 lazy_static! {
     static ref USER_ADDED: prometheus::IntCounter = {
@@ -229,8 +229,10 @@ impl Rolodex {
 }
 
 impl server::Rolodex for Rolodex {
-    type AuthenticateFuture = future::FutureResult<Response<AuthResponse>, tower_grpc::Status>;
-    type AddUserFuture = future::FutureResult<Response<NewUserResponse>, tower_grpc::Status>;
+    type AuthenticateFuture =
+        future::FutureResult<Response<AuthResponse>, rolodex_grpc::tower_grpc::Status>;
+    type AddUserFuture =
+        future::FutureResult<Response<NewUserResponse>, rolodex_grpc::tower_grpc::Status>;
 
     fn authenticate(&mut self, request: Request<AuthRequest>) -> Self::AuthenticateFuture {
         let response = Response::new(
