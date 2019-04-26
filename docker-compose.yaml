@@ -25,6 +25,10 @@ services:
       - "6379:6379"
     volumes:
       - redisdata:/data
+  # rolodex:
+  #   image: gcr.io/umpyre/github.com/umpyre-code/rolodex:latest
+  #   ports:
+  #     - "10011:10011"
 volumes:
   pgdata:
   redisdata:
