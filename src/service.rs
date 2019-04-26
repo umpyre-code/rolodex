@@ -235,31 +235,34 @@ impl server::Rolodex for Rolodex {
         future::FutureResult<Response<NewUserResponse>, rolodex_grpc::tower_grpc::Status>;
 
     fn authenticate(&mut self, request: Request<AuthRequest>) -> Self::AuthenticateFuture {
-        let response = Response::new(
-            self.handle_authenticate(request.get_ref())
-                .map(|res| AuthResponse {
-                    result: Some(auth_response::Result::UserId(res)),
-                })
-                .map_err(|err| AuthResponse {
-                    result: Some(auth_response::Result::Error(err.into())),
-                })
-                .unwrap(),
-        );
+        let response = match self
+            .handle_authenticate(request.get_ref())
+            .map(|res| AuthResponse {
+                result: Some(auth_response::Result::UserId(res)),
+            })
+            .map_err(|err| AuthResponse {
+                result: Some(auth_response::Result::Error(err.into())),
+            }) {
+            Ok(res) => Response::new(res),
+            Err(res) => Response::new(res),
+        };
 
         future::ok(response)
     }
 
     fn add_user(&mut self, request: Request<NewUserRequest>) -> Self::AddUserFuture {
-        let response = Response::new(
-            self.handle_add_user(request.get_ref())
-                .map(|res| NewUserResponse {
-                    result: Some(new_user_response::Result::UserId(res)),
-                })
-                .map_err(|err| NewUserResponse {
-                    result: Some(new_user_response::Result::Error(err.into())),
-                })
-                .unwrap(),
-        );
+        let response = match self
+            .handle_add_user(request.get_ref())
+            .map(|res| NewUserResponse {
+                result: Some(new_user_response::Result::UserId(res)),
+            })
+            .map_err(|err| NewUserResponse {
+                result: Some(new_user_response::Result::Error(err.into())),
+            }) {
+            Ok(res) => Response::new(res),
+            Err(res) => Response::new(res),
+        };
+
         future::ok(response)
     }
 }
