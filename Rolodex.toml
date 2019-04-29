@@ -22,7 +22,7 @@ name = "umpyre"
 connection_pool_size = 10
 
 [metrics]
-bind_to_address = "127.0.0.1:5000"
+bind_to_address = "127.0.0.1:5001"
 
 [redis.reader]
 address = "127.0.0.1:6379"
