@@ -97,11 +97,15 @@ impl Email {
         &self,
         redis_conn: &r2d2_redis::redis::Connection,
     ) -> Result<(), EmailError> {
-        use r2d2_redis::redis::PipelineCommands;
+        use futures::Future;
         use std::str::FromStr;
-        use trust_dns::client::{Client, SyncClient};
+
+        use r2d2_redis::redis::PipelineCommands;
+        use tokio_executor;
+        use tokio_executor::Executor;
+        use trust_dns::client::{ClientFuture, ClientHandle};
         use trust_dns::rr::{DNSClass, Name, RecordType};
-        use trust_dns::udp::UdpClientConnection;
+        use trust_dns::udp::UdpClientStream;
 
         let (is_banned_email_domain, in_public_suffix_list): (bool, bool) = redis::pipe()
             .sismember("banned_email_domains", &self.domain)
@@ -109,16 +113,26 @@ impl Email {
             .query(redis_conn)?;
 
         // Check domain is resolvable
-        let dns_server = "8.8.8.8:53".parse()?;
-        let conn = UdpClientConnection::new(dns_server)?;
-        let client = SyncClient::new(conn);
+        let mut exec = tokio_executor::DefaultExecutor::current();
+
+        let stream = UdpClientStream::new(([8, 8, 8, 8], 53).into());
+        let (bg, mut client) = ClientFuture::connect(stream);
+        exec.spawn(Box::new(bg)).unwrap();
 
         // Specify the name, note the final '.' which specifies it's an FQDN
         let name = Name::from_str(&format!("{}.", &self.domain)).unwrap();
 
         // NOTE: see 'Setup a connection' example above
         // Send the query and get a message response, see RecordType for all supported options
-        let response = client.query(&name, DNSClass::IN, RecordType::MX)?;
+        let query = client.query(name, DNSClass::IN, RecordType::MX);
+
+        let (tx, rx) = futures::sync::oneshot::channel();
+        exec.spawn(Box::new(
+            query.then(move |r| tx.send(r).map_err(|_| unreachable!())),
+        ))
+        .unwrap();
+        let response = rx.wait().unwrap().unwrap();
+
         let answers = response.answers();
         let dns_valid = !answers.is_empty();
 

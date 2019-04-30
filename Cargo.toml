@@ -23,6 +23,7 @@ rolodex-grpc = { path = "lib"}
 serde = "1.0"
 serde_derive = "1.0"
 tokio = "0.1"
+tokio-executor = "0.1"
 tokio-rustls = "0.9"
 toml = "0.5"
 tower-h2 = { git = "https://github.com/tower-rs/tower-h2" }

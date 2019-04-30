@@ -20,6 +20,7 @@ extern crate phonenumber;
 extern crate r2d2_redis;
 extern crate regex;
 extern crate rolodex_grpc;
+extern crate tokio_executor;
 extern crate tokio_rustls;
 extern crate toml;
 extern crate trust_dns;
