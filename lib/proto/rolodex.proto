@@ -29,21 +29,11 @@ enum Error {
   InvalidUserId = 6;
 }
 
-message NewUserResponse {
-  oneof result {
-    string user_id = 1;
-    Error error = 2;
-  }
-}
+message NewUserResponse { string user_id = 1; }
 
 message AuthRequest {
   string user_id = 1;
   string password_hash = 2;
 }
 
-message AuthResponse {
-  oneof result {
-    string user_id = 1;
-    Error error = 2;
-  }
-}
+message AuthResponse { string user_id = 1; }

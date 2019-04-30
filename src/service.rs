@@ -3,10 +3,7 @@ use diesel::sql_types::{Integer, Text};
 use email;
 use futures::future;
 use instrumented::{instrument, prometheus, register};
-use rolodex_grpc::proto::{
-    auth_response, new_user_response, server, AuthRequest, AuthResponse, NewUserRequest,
-    NewUserResponse,
-};
+use rolodex_grpc::proto::{server, AuthRequest, AuthResponse, NewUserRequest, NewUserResponse};
 use rolodex_grpc::tower_grpc::{Request, Response};
 
 lazy_static! {
@@ -235,35 +232,21 @@ impl server::Rolodex for Rolodex {
         future::FutureResult<Response<NewUserResponse>, rolodex_grpc::tower_grpc::Status>;
 
     fn authenticate(&mut self, request: Request<AuthRequest>) -> Self::AuthenticateFuture {
-        let response = match self
-            .handle_authenticate(request.get_ref())
-            .map(|res| AuthResponse {
-                result: Some(auth_response::Result::UserId(res)),
-            })
-            .map_err(|err| AuthResponse {
-                result: Some(auth_response::Result::Error(err.into())),
-            }) {
-            Ok(res) => Response::new(res),
-            Err(res) => Response::new(res),
-        };
-
-        future::ok(response)
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_authenticate(request.get_ref())
+            .map(|res| Response::new(AuthResponse { user_id: res }))
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
     }
 
     fn add_user(&mut self, request: Request<NewUserRequest>) -> Self::AddUserFuture {
-        let response = match self
-            .handle_add_user(request.get_ref())
-            .map(|res| NewUserResponse {
-                result: Some(new_user_response::Result::UserId(res)),
-            })
-            .map_err(|err| NewUserResponse {
-                result: Some(new_user_response::Result::Error(err.into())),
-            }) {
-            Ok(res) => Response::new(res),
-            Err(res) => Response::new(res),
-        };
-
-        future::ok(response)
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_add_user(request.get_ref())
+            .map(|res| Response::new(NewUserResponse { user_id: res }))
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
     }
 }
 
@@ -339,162 +322,183 @@ mod tests {
     fn test_add_user_valid() {
         let _lock = LOCK.lock().unwrap();
 
-        let (db_pool, redis_pool) = get_pools();
-        empty_tables(&db_pool);
+        use futures::future;
 
-        let rolodex = Rolodex::new(
-            db_pool.clone(),
-            db_pool.clone(),
-            redis_pool.clone(),
-            redis_pool.clone(),
-        );
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
 
-        let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
 
-        let result = rolodex.handle_add_user(&NewUserRequest {
-            full_name: "Bob Marley".into(),
-            email: "bob@aol.com".into(),
-            phone_number: Some(PhoneNumber {
-                country: "US".into(),
-                number: "4013213952".into(),
-            }),
-            password_hash: pw_hash.into(),
-        });
-        assert_eq!(result.is_ok(), true);
-        assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
 
-        let user_id = result.unwrap();
+            let result = rolodex.handle_add_user(&NewUserRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(PhoneNumber {
+                    country: "US".into(),
+                    number: "4013213952".into(),
+                }),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(result.is_ok(), true);
+            assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
 
-        let auth_result = rolodex.handle_authenticate(&AuthRequest {
-            user_id: user_id.to_string(),
-            password_hash: pw_hash.into(),
-        });
-        assert_eq!(auth_result.is_ok(), true);
-        assert_eq!(auth_result.unwrap(), user_id);
+            let user_id = result.unwrap();
+
+            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+                user_id: user_id.to_string(),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap(), user_id);
+
+            future::ok(())
+        }));
     }
 
     #[test]
     fn test_user_invalid_auth() {
         let _lock = LOCK.lock().unwrap();
+        use futures::future;
 
-        let (db_pool, redis_pool) = get_pools();
-        empty_tables(&db_pool);
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
 
-        let rolodex = Rolodex::new(
-            db_pool.clone(),
-            db_pool.clone(),
-            redis_pool.clone(),
-            redis_pool.clone(),
-        );
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
 
-        let user_id = "e9f272e503ff4b73891e77c766e8a251";
-        let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let user_id = "e9f272e503ff4b73891e77c766e8a251";
+            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
 
-        let auth_result = rolodex.handle_authenticate(&AuthRequest {
-            user_id: user_id.to_string(),
-            password_hash: pw_hash.into(),
-        });
-        assert_eq!(auth_result.is_err(), true);
+            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+                user_id: user_id.to_string(),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(auth_result.is_err(), true);
+
+            future::ok(())
+        }));
     }
 
     #[test]
     fn test_add_user_duplicate_email() {
         let _lock = LOCK.lock().unwrap();
+        use futures::future;
 
-        let (db_pool, redis_pool) = get_pools();
-        empty_tables(&db_pool);
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
 
-        let rolodex = Rolodex::new(
-            db_pool.clone(),
-            db_pool.clone(),
-            redis_pool.clone(),
-            redis_pool.clone(),
-        );
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
 
-        let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
 
-        let result = rolodex.handle_add_user(&NewUserRequest {
-            full_name: "Bob Marley".into(),
-            email: "bob@aol.com".into(),
-            phone_number: Some(PhoneNumber {
-                country: "US".into(),
-                number: "4013213953".into(),
-            }),
-            password_hash: pw_hash.into(),
-        });
-        assert_eq!(result.is_ok(), true);
-        assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+            let result = rolodex.handle_add_user(&NewUserRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(PhoneNumber {
+                    country: "US".into(),
+                    number: "4013213953".into(),
+                }),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(result.is_ok(), true);
+            assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
 
-        let user_id = result.unwrap();
+            let user_id = result.unwrap();
 
-        let auth_result = rolodex.handle_authenticate(&AuthRequest {
-            user_id: user_id.to_string(),
-            password_hash: pw_hash.into(),
-        });
-        assert_eq!(auth_result.is_ok(), true);
-        assert_eq!(auth_result.unwrap(), user_id);
+            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+                user_id: user_id.to_string(),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap(), user_id);
 
-        let result = rolodex.handle_add_user(&NewUserRequest {
-            full_name: "Bob Marley".into(),
-            email: "bob@aol.com".into(),
-            phone_number: Some(PhoneNumber {
-                country: "US".into(),
-                number: "4013213954".into(),
-            }),
-            password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
-                .into(),
-        });
-        assert_eq!(result.is_err(), true);
+            let result = rolodex.handle_add_user(&NewUserRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(PhoneNumber {
+                    country: "US".into(),
+                    number: "4013213954".into(),
+                }),
+                password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
+                    .into(),
+            });
+            assert_eq!(result.is_err(), true);
+
+            future::ok(())
+        }));
     }
 
     #[test]
     fn test_add_user_duplicate_phone() {
         let _lock = LOCK.lock().unwrap();
+        use futures::future;
 
-        let (db_pool, redis_pool) = get_pools();
-        empty_tables(&db_pool);
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
 
-        let rolodex = Rolodex::new(
-            db_pool.clone(),
-            db_pool.clone(),
-            redis_pool.clone(),
-            redis_pool.clone(),
-        );
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
 
-        let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
 
-        let result = rolodex.handle_add_user(&NewUserRequest {
-            full_name: "Bob Marley".into(),
-            email: "bob@aol.com".into(),
-            phone_number: Some(PhoneNumber {
-                country: "US".into(),
-                number: "4013213953".into(),
-            }),
-            password_hash: pw_hash.into(),
-        });
-        assert_eq!(result.is_ok(), true);
-        assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+            let result = rolodex.handle_add_user(&NewUserRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(PhoneNumber {
+                    country: "US".into(),
+                    number: "4013213953".into(),
+                }),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(result.is_ok(), true);
+            assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
 
-        let user_id = result.unwrap();
+            let user_id = result.unwrap();
 
-        let auth_result = rolodex.handle_authenticate(&AuthRequest {
-            user_id: user_id.to_string(),
-            password_hash: pw_hash.into(),
-        });
-        assert_eq!(auth_result.is_ok(), true);
-        assert_eq!(auth_result.unwrap(), user_id);
+            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+                user_id: user_id.to_string(),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap(), user_id);
 
-        let result = rolodex.handle_add_user(&NewUserRequest {
-            full_name: "Bob Marley".into(),
-            email: "bob2@aol.com".into(),
-            phone_number: Some(PhoneNumber {
-                country: "US".into(),
-                number: "4013213953".into(),
-            }),
-            password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
-                .into(),
-        });
-        assert_eq!(result.is_err(), true);
-        assert_eq!(email_in_table(&db_pool, "bob2@aol.com"), false);
+            let result = rolodex.handle_add_user(&NewUserRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob2@aol.com".into(),
+                phone_number: Some(PhoneNumber {
+                    country: "US".into(),
+                    number: "4013213953".into(),
+                }),
+                password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
+                    .into(),
+            });
+            assert_eq!(result.is_err(), true);
+            assert_eq!(email_in_table(&db_pool, "bob2@aol.com"), false);
+
+            future::ok(())
+        }));
     }
 }

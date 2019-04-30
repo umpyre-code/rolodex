@@ -234,40 +234,45 @@ mod tests {
 
     #[test]
     fn test_validation() {
-        let client = redis::Client::open("redis://127.0.0.1/").unwrap();
-        let redis_conn = client.get_connection().unwrap();
-        assert_eq!(redis_conn.is_open(), true);
+        use futures::future;
 
-        assert_eq!(
-            Email::from_str("brenden@brndn.io")
-                .unwrap()
-                .check_validity(&redis_conn)
-                .is_ok(),
-            true
-        );
+        tokio::run(future::lazy(|| {
+            let client = redis::Client::open("redis://127.0.0.1/").unwrap();
+            let redis_conn = client.get_connection().unwrap();
+            assert_eq!(redis_conn.is_open(), true);
 
-        assert_eq!(
-            Email::from_str("brenden@com")
-                .unwrap()
-                .check_validity(&redis_conn)
-                .is_err(),
-            true
-        );
+            assert_eq!(
+                Email::from_str("brenden@brndn.io")
+                    .unwrap()
+                    .check_validity(&redis_conn)
+                    .is_ok(),
+                true
+            );
 
-        assert_eq!(
-            Email::from_str("brenden@mailinator.com")
-                .unwrap()
-                .check_validity(&redis_conn)
-                .is_err(),
-            true
-        );
+            assert_eq!(
+                Email::from_str("brenden@com")
+                    .unwrap()
+                    .check_validity(&redis_conn)
+                    .is_err(),
+                true
+            );
 
-        assert_eq!(
-            Email::from_str("brenden@lolnotactuallyarealdomainthatexists.com")
-                .unwrap()
-                .check_validity(&redis_conn)
-                .is_err(),
-            true
-        );
+            assert_eq!(
+                Email::from_str("brenden@mailinator.com")
+                    .unwrap()
+                    .check_validity(&redis_conn)
+                    .is_err(),
+                true
+            );
+
+            assert_eq!(
+                Email::from_str("brenden@lolnotactuallyarealdomainthatexists.com")
+                    .unwrap()
+                    .check_validity(&redis_conn)
+                    .is_err(),
+                true
+            );
+            future::ok(())
+        }));
     }
 }
