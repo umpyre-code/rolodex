@@ -118,13 +118,18 @@ fn get_redis_pool(redis: &config::Redis) -> r2d2_redis::r2d2::Pool<RedisConnecti
 }
 
 pub fn main() {
+    use std::env;
+
     color_backtrace::install();
 
     ::env_logger::init();
 
     config::load_config();
 
-    instrumented::init(&config::CONFIG.metrics.bind_to_address);
+    // Allow disablement of metrics reporting for testing
+    if env::var_os("DISABLE_INSTRUMENTED").is_none() {
+        instrumented::init(&config::CONFIG.metrics.bind_to_address);
+    }
 
     let new_service = server::RolodexServer::new(service::Rolodex::new(
         get_db_pool(&config::CONFIG.database.reader),
