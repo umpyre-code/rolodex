@@ -96,9 +96,9 @@ impl From<uuid::parser::ParseError> for RequestError {
     }
 }
 
-impl From<User> for rolodex_grpc::proto::UserResponse {
-    fn from(user: User) -> rolodex_grpc::proto::UserResponse {
-        rolodex_grpc::proto::UserResponse {
+impl From<User> for rolodex_grpc::proto::GetUserResponse {
+    fn from(user: User) -> rolodex_grpc::proto::GetUserResponse {
+        rolodex_grpc::proto::GetUserResponse {
             user_id: user.uuid.to_simple().to_string(),
             full_name: user.full_name,
         }
@@ -225,7 +225,7 @@ impl Rolodex {
 
     /// Returns the user_id for this user if account creation succeeded
     #[instrument(INFO)]
-    fn handle_get_user(&self, request: &UserRequest) -> Result<UserResponse, RequestError> {
+    fn handle_get_user(&self, request: &GetUserRequest) -> Result<GetUserResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.user_id)?;
 
         let conn = self.db_reader.get().unwrap();
@@ -234,7 +234,7 @@ impl Rolodex {
             .filter(users::dsl::uuid.eq(&request_uuid))
             .first(&conn)?;
 
-        Ok(UserResponse::from(user))
+        Ok(user.into())
     }
 }
 
@@ -262,8 +262,8 @@ impl server::Rolodex for Rolodex {
     }
 
     type GetUserFuture =
-        future::FutureResult<Response<UserResponse>, rolodex_grpc::tower_grpc::Status>;
-    fn get_user(&mut self, request: Request<UserRequest>) -> Self::GetUserFuture {
+        future::FutureResult<Response<GetUserResponse>, rolodex_grpc::tower_grpc::Status>;
+    fn get_user(&mut self, request: Request<GetUserRequest>) -> Self::GetUserFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_get_user(request.get_ref())
@@ -550,7 +550,7 @@ mod tests {
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().user_id, user.user_id);
 
-            let get_user = rolodex.handle_get_user(&UserRequest {
+            let get_user = rolodex.handle_get_user(&GetUserRequest {
                 user_id: user.user_id.to_string(),
                 calling_user_id: user.user_id.to_string(),
             });

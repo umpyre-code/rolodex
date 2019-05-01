@@ -5,7 +5,7 @@ package rolodex;
 service Rolodex {
   rpc AddUser(NewUserRequest) returns (NewUserResponse) {}
   rpc Authenticate(AuthRequest) returns (AuthResponse) {}
-  rpc GetUser(UserRequest) returns (UserResponse) {}
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {}
 }
 
 message PhoneNumber {
@@ -29,12 +29,12 @@ message AuthRequest {
 
 message AuthResponse { string user_id = 1; }
 
-message UserRequest {
+message GetUserRequest {
   string calling_user_id = 1;
   string user_id = 2;
 }
 
-message UserResponse {
+message GetUserResponse {
   string user_id = 1;
   string full_name = 2;
 }
