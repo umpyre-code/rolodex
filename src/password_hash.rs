@@ -134,7 +134,12 @@ mod tests {
         let redis_conn = client.get_connection().unwrap();
         assert_eq!(redis_conn.is_open(), true);
 
-        assert_eq!(banned_hash.check_validity(&redis_conn).is_err(), true);
+        let res = banned_hash.check_validity(&redis_conn);
+        let banned = match res {
+            Err(PasswordHashError::BannedPassword { .. }) => true,
+            _ => false,
+        };
+        assert_eq!(banned, true);
         assert_eq!(not_banned_hash.check_validity(&redis_conn).is_ok(), true);
     }
 }

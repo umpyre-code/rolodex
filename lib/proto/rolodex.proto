@@ -5,6 +5,7 @@ package rolodex;
 service Rolodex {
   rpc AddUser(NewUserRequest) returns (NewUserResponse) {}
   rpc Authenticate(AuthRequest) returns (AuthResponse) {}
+  rpc GetUser(UserRequest) returns (UserResponse) {}
 }
 
 message PhoneNumber {
@@ -19,16 +20,6 @@ message NewUserRequest {
   PhoneNumber phone_number = 4;
 }
 
-enum Error {
-  InvalidPhoneNumber = 0;
-  InvalidEmail = 1;
-  LowQualityPassword = 2;
-  BadCredentials = 3;
-  DatabaseError = 4;
-  EmailDNSFailure = 5;
-  InvalidUserId = 6;
-}
-
 message NewUserResponse { string user_id = 1; }
 
 message AuthRequest {
@@ -37,3 +28,13 @@ message AuthRequest {
 }
 
 message AuthResponse { string user_id = 1; }
+
+message UserRequest {
+  string calling_user_id = 1;
+  string user_id = 2;
+}
+
+message UserResponse {
+  string user_id = 1;
+  string full_name = 2;
+}

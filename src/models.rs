@@ -4,6 +4,7 @@ use crate::schema::unique_email_addresses;
 use crate::schema::users;
 use chrono::NaiveDateTime;
 
+/// This represents the private (internal) user model
 #[derive(Queryable, Identifiable)]
 pub struct User {
     pub id: i64,
@@ -27,6 +28,7 @@ pub struct UniqueEmailAddress {
     pub email_without_labels: String,
 }
 
+/// This represents all internal user email addresses
 #[derive(AsChangeset, Insertable, Associations)]
 #[table_name = "unique_email_addresses"]
 #[belongs_to(User)]

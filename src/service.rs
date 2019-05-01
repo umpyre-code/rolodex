@@ -1,9 +1,13 @@
+use crate::email;
+use crate::models::*;
+use crate::schema::*;
 use diesel::prelude::*;
+use diesel::result::Error;
 use diesel::sql_types::{Integer, Text};
-use email;
+use email::Email;
 use futures::future;
 use instrumented::{instrument, prometheus, register};
-use rolodex_grpc::proto::{server, AuthRequest, AuthResponse, NewUserRequest, NewUserResponse};
+use rolodex_grpc::proto::*;
 use rolodex_grpc::tower_grpc::{Request, Response};
 
 lazy_static! {
@@ -34,22 +38,23 @@ enum RequestError {
     InvalidPhoneNumber { err: String },
     #[fail(display = "invalid email: {}", email)]
     InvalidEmail { email: String },
-    #[fail(display = "low quality password: {}", password_hash)]
-    LowQualityPassword { password_hash: String },
-    #[fail(display = "bad credentials")]
-    BadCredentials,
     #[fail(display = "database error: {}", err)]
     DatabaseError { err: String },
     #[fail(display = "email domain DNS failure: {}", err)]
     EmailDNSFailure { err: String },
     #[fail(display = "invalid user_id: {}", err)]
     InvalidUserId { err: String },
+    #[fail(display = "resource could not be found")]
+    NotFound,
 }
 
 impl From<diesel::result::Error> for RequestError {
     fn from(err: diesel::result::Error) -> RequestError {
-        RequestError::DatabaseError {
-            err: format!("{}", err),
+        match err {
+            diesel::result::Error::NotFound => RequestError::NotFound,
+            _ => RequestError::DatabaseError {
+                err: format!("{}", err),
+            },
         }
     }
 }
@@ -91,24 +96,27 @@ impl From<uuid::parser::ParseError> for RequestError {
     }
 }
 
-impl From<RequestError> for i32 {
-    fn from(err: RequestError) -> Self {
-        match err {
-            RequestError::InvalidPhoneNumber { .. } => {
-                rolodex_grpc::proto::Error::InvalidPhoneNumber as i32
-            }
-            RequestError::InvalidEmail { .. } => rolodex_grpc::proto::Error::InvalidEmail as i32,
-            RequestError::LowQualityPassword { .. } => {
-                rolodex_grpc::proto::Error::LowQualityPassword as i32
-            }
-            RequestError::BadCredentials { .. } => {
-                rolodex_grpc::proto::Error::BadCredentials as i32
-            }
-            RequestError::DatabaseError { .. } => rolodex_grpc::proto::Error::DatabaseError as i32,
-            RequestError::EmailDNSFailure { .. } => {
-                rolodex_grpc::proto::Error::EmailDnsFailure as i32
-            }
-            RequestError::InvalidUserId { .. } => rolodex_grpc::proto::Error::InvalidUserId as i32,
+impl From<User> for rolodex_grpc::proto::UserResponse {
+    fn from(user: User) -> rolodex_grpc::proto::UserResponse {
+        rolodex_grpc::proto::UserResponse {
+            user_id: user.uuid.to_simple().to_string(),
+            full_name: user.full_name,
+        }
+    }
+}
+
+impl From<User> for rolodex_grpc::proto::AuthResponse {
+    fn from(user: User) -> rolodex_grpc::proto::AuthResponse {
+        rolodex_grpc::proto::AuthResponse {
+            user_id: user.uuid.to_simple().to_string(),
+        }
+    }
+}
+
+impl From<User> for rolodex_grpc::proto::NewUserResponse {
+    fn from(user: User) -> rolodex_grpc::proto::NewUserResponse {
+        rolodex_grpc::proto::NewUserResponse {
+            user_id: user.uuid.to_simple().to_string(),
         }
     }
 }
@@ -138,16 +146,12 @@ impl Rolodex {
 
     /// Returns the user_id for this user if auth succeeds
     #[instrument(INFO)]
-    fn handle_authenticate(&self, request: &AuthRequest) -> Result<String, RequestError> {
-        use crate::schema::users;
-        use diesel::prelude::*;
-
+    fn handle_authenticate(&self, request: &AuthRequest) -> Result<AuthResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.user_id)?;
 
         let conn = self.db_reader.get().unwrap();
 
-        let uuid: uuid::Uuid = users::table
-            .select(users::uuid)
+        let user: User = users::table
             .filter(
                 users::dsl::password_hash
                     .eq(crypt(
@@ -159,17 +163,12 @@ impl Rolodex {
             .first(&conn)?;
 
         USER_AUTHED.inc();
-        Ok(uuid.to_simple().to_string())
+        Ok(user.into())
     }
 
     /// Returns the user_id for this user if account creation succeeded
     #[instrument(INFO)]
-    fn handle_add_user(&self, request: &NewUserRequest) -> Result<String, RequestError> {
-        use crate::models::{NewUniqueEmailAddress, User};
-        use crate::schema::{unique_email_addresses, users};
-        use diesel::result::Error;
-        use email::Email;
-
+    fn handle_add_user(&self, request: &NewUserRequest) -> Result<NewUserResponse, RequestError> {
         let number = if let Some(phone_number) = &request.phone_number {
             let country = phone_number.country.parse().unwrap();
             let number = phonenumber::parse(Some(country), &phone_number.number)?;
@@ -221,30 +220,54 @@ impl Rolodex {
         })?;
 
         USER_ADDED.inc();
-        Ok(user.uuid.to_simple().to_string())
+        Ok(user.into())
+    }
+
+    /// Returns the user_id for this user if account creation succeeded
+    #[instrument(INFO)]
+    fn handle_get_user(&self, request: &UserRequest) -> Result<UserResponse, RequestError> {
+        let request_uuid = uuid::Uuid::parse_str(&request.user_id)?;
+
+        let conn = self.db_reader.get().unwrap();
+
+        let user: User = users::table
+            .filter(users::dsl::uuid.eq(&request_uuid))
+            .first(&conn)?;
+
+        Ok(UserResponse::from(user))
     }
 }
 
 impl server::Rolodex for Rolodex {
     type AuthenticateFuture =
         future::FutureResult<Response<AuthResponse>, rolodex_grpc::tower_grpc::Status>;
-    type AddUserFuture =
-        future::FutureResult<Response<NewUserResponse>, rolodex_grpc::tower_grpc::Status>;
-
     fn authenticate(&mut self, request: Request<AuthRequest>) -> Self::AuthenticateFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_authenticate(request.get_ref())
-            .map(|res| Response::new(AuthResponse { user_id: res }))
+            .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
     }
 
+    type AddUserFuture =
+        future::FutureResult<Response<NewUserResponse>, rolodex_grpc::tower_grpc::Status>;
     fn add_user(&mut self, request: Request<NewUserRequest>) -> Self::AddUserFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_add_user(request.get_ref())
-            .map(|res| Response::new(NewUserResponse { user_id: res }))
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
+    type GetUserFuture =
+        future::FutureResult<Response<UserResponse>, rolodex_grpc::tower_grpc::Status>;
+    fn get_user(&mut self, request: Request<UserRequest>) -> Self::GetUserFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_get_user(request.get_ref())
+            .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
     }
@@ -254,7 +277,8 @@ impl server::Rolodex for Rolodex {
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
-    use rolodex_grpc::proto::PhoneNumber;
+    use diesel::dsl::*;
+    use diesel::r2d2::{ConnectionManager, Pool};
     use std::sync::Mutex;
 
     lazy_static! {
@@ -265,7 +289,6 @@ mod tests {
         diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
         r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
     ) {
-        use diesel::r2d2::{ConnectionManager, Pool};
         let pg_manager = ConnectionManager::<PgConnection>::new(
             "postgres://postgres:password@127.0.0.1:5432/umpyre",
         );
@@ -282,10 +305,6 @@ mod tests {
     fn empty_tables(
         db_pool: &diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
     ) {
-        use crate::schema::{unique_email_addresses, users};
-        use diesel::dsl::*;
-        use diesel::prelude::*;
-
         let conn = db_pool.get().unwrap();
 
         macro_rules! empty_tables {
@@ -304,10 +323,6 @@ mod tests {
         db_pool: &diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
         email: &str,
     ) -> bool {
-        use crate::schema::unique_email_addresses;
-        use diesel::dsl::*;
-        use diesel::prelude::*;
-
         let conn = db_pool.get().unwrap();
 
         let count: i64 = unique_email_addresses::table
@@ -321,8 +336,6 @@ mod tests {
     #[test]
     fn test_add_user_valid() {
         let _lock = LOCK.lock().unwrap();
-
-        use futures::future;
 
         tokio::run(future::lazy(|| {
             let (db_pool, redis_pool) = get_pools();
@@ -349,14 +362,14 @@ mod tests {
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
 
-            let user_id = result.unwrap();
+            let user = result.unwrap();
 
             let auth_result = rolodex.handle_authenticate(&AuthRequest {
-                user_id: user_id.to_string(),
+                user_id: user.user_id.to_string(),
                 password_hash: pw_hash.into(),
             });
             assert_eq!(auth_result.is_ok(), true);
-            assert_eq!(auth_result.unwrap(), user_id);
+            assert_eq!(auth_result.unwrap().user_id, user.user_id);
 
             future::ok(())
         }));
@@ -365,7 +378,6 @@ mod tests {
     #[test]
     fn test_user_invalid_auth() {
         let _lock = LOCK.lock().unwrap();
-        use futures::future;
 
         tokio::run(future::lazy(|| {
             let (db_pool, redis_pool) = get_pools();
@@ -394,7 +406,6 @@ mod tests {
     #[test]
     fn test_add_user_duplicate_email() {
         let _lock = LOCK.lock().unwrap();
-        use futures::future;
 
         tokio::run(future::lazy(|| {
             let (db_pool, redis_pool) = get_pools();
@@ -421,14 +432,14 @@ mod tests {
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
 
-            let user_id = result.unwrap();
+            let user = result.unwrap();
 
             let auth_result = rolodex.handle_authenticate(&AuthRequest {
-                user_id: user_id.to_string(),
+                user_id: user.user_id.to_string(),
                 password_hash: pw_hash.into(),
             });
             assert_eq!(auth_result.is_ok(), true);
-            assert_eq!(auth_result.unwrap(), user_id);
+            assert_eq!(auth_result.unwrap().user_id, user.user_id);
 
             let result = rolodex.handle_add_user(&NewUserRequest {
                 full_name: "Bob Marley".into(),
@@ -449,7 +460,6 @@ mod tests {
     #[test]
     fn test_add_user_duplicate_phone() {
         let _lock = LOCK.lock().unwrap();
-        use futures::future;
 
         tokio::run(future::lazy(|| {
             let (db_pool, redis_pool) = get_pools();
@@ -476,14 +486,14 @@ mod tests {
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
 
-            let user_id = result.unwrap();
+            let user = result.unwrap();
 
             let auth_result = rolodex.handle_authenticate(&AuthRequest {
-                user_id: user_id.to_string(),
+                user_id: user.user_id.to_string(),
                 password_hash: pw_hash.into(),
             });
             assert_eq!(auth_result.is_ok(), true);
-            assert_eq!(auth_result.unwrap(), user_id);
+            assert_eq!(auth_result.unwrap().user_id, user.user_id);
 
             let result = rolodex.handle_add_user(&NewUserRequest {
                 full_name: "Bob Marley".into(),
@@ -497,6 +507,56 @@ mod tests {
             });
             assert_eq!(result.is_err(), true);
             assert_eq!(email_in_table(&db_pool, "bob2@aol.com"), false);
+
+            future::ok(())
+        }));
+    }
+
+    #[test]
+    fn test_get_user() {
+        let _lock = LOCK.lock().unwrap();
+
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
+
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
+
+            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+
+            let result = rolodex.handle_add_user(&NewUserRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(PhoneNumber {
+                    country: "US".into(),
+                    number: "4013213953".into(),
+                }),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(result.is_ok(), true);
+            assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+
+            let user = result.unwrap();
+
+            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+                user_id: user.user_id.to_string(),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap().user_id, user.user_id);
+
+            let get_user = rolodex.handle_get_user(&UserRequest {
+                user_id: user.user_id.to_string(),
+                calling_user_id: user.user_id.to_string(),
+            });
+
+            assert_eq!(get_user.is_ok(), true);
+            assert_eq!(get_user.unwrap().user_id, user.user_id);
 
             future::ok(())
         }));
