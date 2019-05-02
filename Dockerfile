@@ -1,6 +1,7 @@
 FROM rustlang/rust:nightly
 
 ARG SSH_KEY
+ARG SCCACHE_KEY
 
 # add sccache
 ENV SCCACHE_VERSION=0.2.8
@@ -12,6 +13,7 @@ RUN cd /tmp \
 
 ENV SCCACHE_GCS_BUCKET=umpyre-sccache
 ENV SCCACHE_GCS_RW_MODE=READ_WRITE
+ENV SCCACHE_GCS_KEY_PATH=/root/sccache.json
 ENV RUSTC_WRAPPER=sccache
 
 WORKDIR /app
@@ -23,6 +25,7 @@ RUN mkdir -p $HOME/.ssh \
   && chmod 0700 $HOME/.ssh \
   && ssh-keyscan github.com > $HOME/.ssh/known_hosts \
   && echo "$SSH_KEY" > $HOME/.ssh/id_rsa \
+  && echo "$SCCACHE_KEY" > $SCCACHE_GCS_KEY_PATH \
   && chmod 600 $HOME/.ssh/id_rsa \
   && eval `ssh-agent` \
   && ssh-add -k $HOME/.ssh/id_rsa \
