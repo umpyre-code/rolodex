@@ -25,7 +25,6 @@ RUN mkdir -p $HOME/.ssh \
   && ssh-keyscan github.com > $HOME/.ssh/known_hosts \
   && echo "$SSH_KEY" > $HOME/.ssh/id_rsa \
   && echo "$SCCACHE_KEY" > $SCCACHE_GCS_KEY_PATH \
-  && sccache -s \
   && chmod 600 $HOME/.ssh/id_rsa \
   && eval `ssh-agent` \
   && ssh-add -k $HOME/.ssh/id_rsa \
