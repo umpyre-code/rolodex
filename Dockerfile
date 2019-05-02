@@ -26,7 +26,7 @@ RUN mkdir -p $HOME/.ssh \
   && echo "$SSH_KEY" > $HOME/.ssh/id_rsa \
   && echo "$SCCACHE_KEY" > $SCCACHE_GCS_KEY_PATH \
   && RUST_LOG=sccache=info SCCACHE_START_SERVER=1 SCCACHE_NO_DAEMON=1 sccache & \
-  && chmod 600 $HOME/.ssh/id_rsa \
+  chmod 600 $HOME/.ssh/id_rsa \
   && eval `ssh-agent` \
   && ssh-add -k $HOME/.ssh/id_rsa \
   && cd src \
