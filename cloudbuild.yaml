@@ -15,10 +15,10 @@ steps:
   entrypoint: 'bash'
   args: ['-c', 'docker build --build-arg SSH_KEY="$$SSH_KEY" -t gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest -t gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID --cache-from gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest --cache-from rustlang/rust:nightly .']
   secretEnv: ['SSH_KEY']
-  timeout: 3600s
 images: [
    'gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest','gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID',
 ]
+timeout: 1h
 secrets:
 - kmsKeyName: projects/umpyre/locations/global/keyRings/deploy/cryptoKeys/deploy-key
   secretEnv:
