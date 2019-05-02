@@ -24,7 +24,7 @@ RUN mkdir -p $HOME/.ssh \
   && chmod 0700 $HOME/.ssh \
   && ssh-keyscan github.com > $HOME/.ssh/known_hosts \
   && echo "$SSH_KEY" > $HOME/.ssh/id_rsa \
-  && echo "$SCCACHE_KEY" > $SCCACHE_GCS_KEY_PATH \
+  && echo "$SCCACHE_KEY" | base64 -d > $SCCACHE_GCS_KEY_PATH \
   && cat $SCCACHE_GCS_KEY_PATH \
   && RUST_LOG=sccache=info SCCACHE_START_SERVER=1 SCCACHE_NO_DAEMON=1 sccache
 
