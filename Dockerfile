@@ -25,10 +25,7 @@ RUN mkdir -p $HOME/.ssh \
   && ssh-keyscan github.com > $HOME/.ssh/known_hosts \
   && echo "$SSH_KEY" > $HOME/.ssh/id_rsa \
   && echo "$SCCACHE_KEY" | base64 -d > $SCCACHE_GCS_KEY_PATH \
-  && cat $SCCACHE_GCS_KEY_PATH \
-  && RUST_LOG=sccache=info SCCACHE_START_SERVER=1 SCCACHE_NO_DAEMON=1 sccache
-
-RUN chmod 600 $HOME/.ssh/id_rsa \
+  && chmod 600 $HOME/.ssh/id_rsa \
   && eval `ssh-agent` \
   && ssh-add -k $HOME/.ssh/id_rsa \
   && cd src \
@@ -36,6 +33,7 @@ RUN chmod 600 $HOME/.ssh/id_rsa \
   && cd tools/loader \
   && cargo install --path . \
   && cd .. \
+  && rm -rf /usr/bin/sccache \
   && rm -rf src \
   && rm -rf $HOME/.cargo/registry \
   && rm -rf $HOME/.cargo/git
