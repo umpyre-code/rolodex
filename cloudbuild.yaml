@@ -13,7 +13,7 @@ steps:
    docker pull rustlang/rust:nightly || true
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
-  args: ['-c', 'docker build --build-arg SSH_KEY=$$SSH_KEY --squash -t gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest -t gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID --cache-from gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest --cache-from rustlang/rust:nightly .']
+  args: ['-c', 'docker build --build-arg SSH_KEY="$$SSH_KEY" --squash -t gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest -t gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID --cache-from gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest --cache-from rustlang/rust:nightly .']
   secretEnv: ['SSH_KEY']
 images: [
    'gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest','gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID',
