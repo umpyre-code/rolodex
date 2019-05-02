@@ -1,0 +1,25 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+   docker pull gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest || true
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+   docker pull rustlang/rust:nightly || true
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+            'build',
+            '-t', 'gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest',
+            '-t', 'gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID',
+            '--cache-from', 'gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest',
+            '--cache-from', 'rustlang/rust:nightly',
+            '.'
+        ]
+images: [
+   'gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest','gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID',
+]
