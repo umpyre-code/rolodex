@@ -15,10 +15,13 @@ ENV SCCACHE_GCS_RW_MODE=READ_WRITE
 ENV SCCACHE_GCS_KEY_PATH=/root/sccache.json
 ENV RUSTC_WRAPPER=sccache
 
+ADD https://github.com/a8m/envsubst/releases/download/v1.1.0/envsubst-Linux-x86_64 /usr/bin/envsubst
+RUN chmod +x envsubst
+
 WORKDIR /app
 
 COPY . /app/src
-COPY Rolodex.toml /app
+COPY entrypoint.sh /app
 
 RUN mkdir -p $HOME/.ssh \
   && chmod 0700 $HOME/.ssh \
@@ -43,4 +46,4 @@ RUN rm -rf /root/.ssh/
 
 ENV RUST_LOG=rolodex=info
 
-ENTRYPOINT [ "rolodex" ]
+ENTRYPOINT [ "entrypoint.sh" ]
