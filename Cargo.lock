@@ -1212,8 +1212,8 @@ version = "0.1.0"
 dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tower-grpc 0.1.0 (git+https://github.com/tower-rs/tower-grpc)",
- "tower-grpc-build 0.1.0 (git+https://github.com/tower-rs/tower-grpc)",
+ "tower-grpc 0.1.0 (git+https://github.com/tower-rs/tower-grpc?rev=46857f0c9f760e5187603decf8d488a3c19eb994)",
+ "tower-grpc-build 0.1.0 (git+https://github.com/tower-rs/tower-grpc?rev=46857f0c9f760e5187603decf8d488a3c19eb994)",
 ]
 
 [[package]]
@@ -1694,7 +1694,7 @@ dependencies = [
 [[package]]
 name = "tower-grpc"
 version = "0.1.0"
-source = "git+https://github.com/tower-rs/tower-grpc#46857f0c9f760e5187603decf8d488a3c19eb994"
+source = "git+https://github.com/tower-rs/tower-grpc?rev=46857f0c9f760e5187603decf8d488a3c19eb994#46857f0c9f760e5187603decf8d488a3c19eb994"
 dependencies = [
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1713,7 +1713,7 @@ dependencies = [
 [[package]]
 name = "tower-grpc-build"
 version = "0.1.0"
-source = "git+https://github.com/tower-rs/tower-grpc#46857f0c9f760e5187603decf8d488a3c19eb994"
+source = "git+https://github.com/tower-rs/tower-grpc?rev=46857f0c9f760e5187603decf8d488a3c19eb994#46857f0c9f760e5187603decf8d488a3c19eb994"
 dependencies = [
  "codegen 0.1.1 (git+https://github.com/carllerche/codegen)",
  "heck 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2325,8 +2325,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum tower 0.1.0 (git+https://github.com/tower-rs/tower)" = "<none>"
 "checksum tower-buffer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5c98a7784e6c8ba106bc98d44ed1dbb9c018a8e0322e5e894d365f9020967128"
 "checksum tower-discover 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "73a7632286f78164d65d18fd0e570307acde9362489aa5c8c53e6315cc2bde47"
-"checksum tower-grpc 0.1.0 (git+https://github.com/tower-rs/tower-grpc)" = "<none>"
-"checksum tower-grpc-build 0.1.0 (git+https://github.com/tower-rs/tower-grpc)" = "<none>"
+"checksum tower-grpc 0.1.0 (git+https://github.com/tower-rs/tower-grpc?rev=46857f0c9f760e5187603decf8d488a3c19eb994)" = "<none>"
+"checksum tower-grpc-build 0.1.0 (git+https://github.com/tower-rs/tower-grpc?rev=46857f0c9f760e5187603decf8d488a3c19eb994)" = "<none>"
 "checksum tower-h2 0.1.0 (git+https://github.com/tower-rs/tower-h2)" = "<none>"
 "checksum tower-http 0.1.0 (git+https://github.com/tower-rs/tower-http)" = "<none>"
 "checksum tower-http-util 0.1.0 (git+https://github.com/tower-rs/tower-http)" = "<none>"

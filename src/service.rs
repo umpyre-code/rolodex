@@ -271,6 +271,14 @@ impl server::Rolodex for Rolodex {
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
     }
+
+    type CheckFuture =
+        future::FutureResult<Response<HealthCheckResponse>, rolodex_grpc::tower_grpc::Status>;
+    fn check(&mut self, _request: Request<HealthCheckRequest>) -> Self::CheckFuture {
+        future::ok(Response::new(HealthCheckResponse {
+            status: health_check_response::ServingStatus::Serving as i32,
+        }))
+    }
 }
 
 #[cfg(test)]
