@@ -37,8 +37,6 @@ RUN mkdir -p $HOME/.ssh \
   && ssh-add -k $HOME/.ssh/id_rsa \
   && cd src \
   && cargo install --path . \
-  && cd tools/loader \
-  && cargo install --path . \
   && cd .. \
   && rm -rf /usr/bin/sccache \
   && rm -rf src \
