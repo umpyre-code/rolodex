@@ -19,7 +19,7 @@ pub struct Service {
     pub ca_cert_path: String,
     pub tls_cert_path: String,
     pub tls_key_path: String,
-    pub bind_to_addr: String,
+    pub bind_to_address: String,
 }
 
 #[derive(Debug, Deserialize)]

@@ -147,7 +147,7 @@ pub fn main() {
 
     let tls_config = get_tls_config();
 
-    let addr = config::CONFIG.service.bind_to_addr.parse().unwrap();
+    let addr = config::CONFIG.service.bind_to_address.parse().unwrap();
     let bind = TcpListener::bind(&addr).expect("bind");
 
     let serve = bind

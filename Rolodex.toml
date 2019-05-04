@@ -3,7 +3,7 @@ worker_threads = 4
 ca_cert_path = "test/UmpyreAuth.crt"
 tls_cert_path = "test/Rolodex.crt"
 tls_key_path = "test/Rolodex.key"
-bind_to_addr = "127.0.0.1:10011"
+bind_to_address = "127.0.0.1:10011"
 
 [database.writer]
 host = "127.0.0.1"
