@@ -3,6 +3,6 @@
 set -e
 set -x
 
-envsubst < /etc/Rolodex.toml.in > Rolodex.toml
+envsubst < /etc/config/Rolodex.toml.in > Rolodex.toml
 
 exec rolodex "$@"
