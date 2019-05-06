@@ -101,8 +101,7 @@ impl Email {
         use std::str::FromStr;
 
         use r2d2_redis::redis::PipelineCommands;
-        use tokio_executor;
-        use tokio_executor::Executor;
+        use tokio::executor::Executor;
         use trust_dns::client::{ClientFuture, ClientHandle};
         use trust_dns::rr::{DNSClass, Name, RecordType};
         use trust_dns::udp::UdpClientStream;
@@ -113,7 +112,7 @@ impl Email {
             .query(redis_conn)?;
 
         // Check domain is resolvable
-        let mut exec = tokio_executor::DefaultExecutor::current();
+        let mut exec = tokio::executor::DefaultExecutor::current();
 
         let stream = UdpClientStream::new(([8, 8, 8, 8], 53).into());
         let (bg, mut client) = ClientFuture::connect(stream);

@@ -4,7 +4,7 @@ extern crate futures;
 #[macro_use]
 extern crate log;
 extern crate tokio;
-extern crate tower_h2;
+extern crate tower_hyper;
 #[macro_use]
 extern crate diesel;
 extern crate chrono;
@@ -20,7 +20,6 @@ extern crate phonenumber;
 extern crate r2d2_redis;
 extern crate regex;
 extern crate rolodex_grpc;
-extern crate tokio_executor;
 extern crate tokio_rustls;
 extern crate toml;
 extern crate trust_dns;
@@ -47,7 +46,7 @@ use tokio_rustls::rustls::{
     AllowAnyAuthenticatedClient, Certificate, PrivateKey, RootCertStore, ServerConfig,
 };
 use tokio_rustls::TlsAcceptor;
-use tower_h2::Server;
+use tower_hyper::server::{Http, Server};
 
 fn load_certs(path: &str) -> Vec<Certificate> {
     certs(&mut BufReader::new(
@@ -138,12 +137,9 @@ pub fn main() {
         get_redis_pool(&config::CONFIG.redis.writer),
     ));
 
-    let h2_settings = Default::default();
-    let h2 = Arc::new(Mutex::new(Server::new(
-        new_service,
-        h2_settings,
-        DefaultExecutor::current(),
-    )));
+    let server = Arc::new(Mutex::new(Server::new(new_service)));
+
+    let http = Http::new().http2_only(true).clone();
 
     let tls_config = get_tls_config();
 
@@ -153,17 +149,18 @@ pub fn main() {
     let serve = bind
         .incoming()
         .for_each(move |tls_sock| {
+            let http = http.clone();
+            let server = server.clone();
             let addr = tls_sock.peer_addr().ok();
             if let Err(e) = tls_sock.set_nodelay(true) {
                 return Err(e);
             }
             info!("New connection from addr={:?}", addr);
-            let h2_inner = h2.clone();
             let done = tls_config
                 .accept(tls_sock)
                 .and_then(move |sock| {
-                    let serve = h2_inner.lock().unwrap().serve(sock);
-                    tokio::spawn(serve.map_err(|e| error!("h2 error: {:?}", e)));
+                    let serve = server.lock().unwrap().serve_with(sock, http.clone());
+                    tokio::spawn(serve.map_err(|e| error!("hyper error: {:?}", e)));
 
                     Ok(())
                 })

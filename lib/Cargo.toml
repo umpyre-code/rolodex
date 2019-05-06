@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 prost = "0.5"
 bytes = "0.4"
-tower-grpc = { git = "https://github.com/tower-rs/tower-grpc", rev = "46857f0c9f760e5187603decf8d488a3c19eb994" }
+tower-grpc = { git = "https://github.com/tower-rs/tower-grpc", features = ["tower-hyper"] }
 
 [build-dependencies]
-tower-grpc-build = { git = "https://github.com/tower-rs/tower-grpc", rev = "46857f0c9f760e5187603decf8d488a3c19eb994" }
+tower-grpc-build = { git = "https://github.com/tower-rs/tower-grpc", features = ["tower-hyper"] }
