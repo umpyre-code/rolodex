@@ -1,12 +1,12 @@
 syntax = "proto3";
 
 package rolodex;
+option java_package = "rolodex";
 
 service Rolodex {
   rpc AddUser(NewUserRequest) returns (NewUserResponse) {}
   rpc Authenticate(AuthRequest) returns (AuthResponse) {}
   rpc GetUser(GetUserRequest) returns (GetUserResponse) {}
-  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
 }
 
 message PhoneNumber {
@@ -38,15 +38,4 @@ message GetUserRequest {
 message GetUserResponse {
   string user_id = 1;
   string full_name = 2;
-}
-
-message HealthCheckRequest { string service = 1; }
-
-message HealthCheckResponse {
-  enum ServingStatus {
-    UNKNOWN = 0;
-    SERVING = 1;
-    NOT_SERVING = 2;
-  }
-  ServingStatus status = 1;
 }

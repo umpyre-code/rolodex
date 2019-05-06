@@ -43,8 +43,8 @@ RUN mkdir -p $HOME/.ssh \
   && rm -rf $HOME/.cargo/registry \
   && rm -rf $HOME/.cargo/git
 
-# Remove SSH keys
-RUN rm -rf /root/.ssh/
+# Remove keys
+RUN rm -rf /root/.ssh/ && rm $SCCACHE_GCS_KEY_PATH
 
 ENV RUST_LOG=rolodex=info
 

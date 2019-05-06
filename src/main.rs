@@ -39,7 +39,6 @@ use rolodex_grpc::proto::server;
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::{Arc, Mutex};
-use tokio::executor::DefaultExecutor;
 use tokio::net::TcpListener;
 use tokio_rustls::rustls::internal::pemfile::{certs, rsa_private_keys};
 use tokio_rustls::rustls::{
