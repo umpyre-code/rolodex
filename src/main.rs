@@ -3,6 +3,7 @@ extern crate env_logger;
 extern crate futures;
 #[macro_use]
 extern crate log;
+extern crate log_panics;
 extern crate tokio;
 extern crate tower_hyper;
 #[macro_use]
@@ -121,6 +122,7 @@ pub fn main() {
     color_backtrace::install();
 
     ::env_logger::init();
+    ::log_panics::init();
 
     config::load_config();
 
