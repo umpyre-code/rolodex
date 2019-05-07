@@ -5,7 +5,7 @@ authors = ["Brenden Matthews <brenden@brndn.io>"]
 
 [dependencies]
 chrono = { version = "0.4"  }
-color-backtrace = "0.1"
+color-backtrace = { git = "https://github.com/brndnmtthws/color-backtrace.git" }
 data-encoding = "2"
 diesel = { version = "1.4", features = ["postgres", "chrono", "r2d2", "uuidv07"] }
 env_logger = { version = "0.5", default-features = false }
