@@ -14,7 +14,6 @@ extern crate failure;
 extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
-extern crate color_backtrace;
 extern crate instrumented;
 extern crate phonenumber;
 extern crate r2d2_redis;
@@ -117,8 +116,6 @@ fn get_redis_pool(redis: &config::Redis) -> r2d2_redis::r2d2::Pool<RedisConnecti
 
 pub fn main() {
     use std::env;
-
-    color_backtrace::install();
 
     ::env_logger::init();
 
