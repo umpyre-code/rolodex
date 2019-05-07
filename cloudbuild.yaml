@@ -21,7 +21,7 @@ steps:
   - image
   - deployment
   - rolodex-staging
-  - gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID
+  - rolodex=gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID
   - --namespace=staging
   env:
   - 'CLOUDSDK_COMPUTE_REGION=us-central1'
