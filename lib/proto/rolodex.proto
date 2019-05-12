@@ -19,6 +19,7 @@ message NewUserRequest {
   string password_hash = 2;
   string email = 3;
   PhoneNumber phone_number = 4;
+  string public_key = 5;
 }
 
 message NewUserResponse { string user_id = 1; }
@@ -38,4 +39,5 @@ message GetUserRequest {
 message GetUserResponse {
   string user_id = 1;
   string full_name = 2;
+  string public_key = 3;
 }

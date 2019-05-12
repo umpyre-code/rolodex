@@ -101,6 +101,7 @@ impl From<User> for rolodex_grpc::proto::GetUserResponse {
         rolodex_grpc::proto::GetUserResponse {
             user_id: user.uuid.to_simple().to_string(),
             full_name: user.full_name,
+            public_key: user.public_key,
         }
     }
 }
@@ -203,6 +204,7 @@ impl Rolodex {
                         .format()
                         .mode(phonenumber::Mode::International)
                         .to_string()),
+                    users::dsl::public_key.eq(request.public_key.clone()),
                 )])
                 .get_result(&conn)?;
 
@@ -370,6 +372,7 @@ mod tests {
                     number: "4013213952".into(),
                 }),
                 password_hash: pw_hash.into(),
+                public_key: "herp derp".into(),
             });
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
@@ -440,6 +443,7 @@ mod tests {
                     number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
+                public_key: "herp derp".into(),
             });
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
@@ -462,6 +466,7 @@ mod tests {
                 }),
                 password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
                     .into(),
+                public_key: "herp derp".into(),
             });
             assert_eq!(result.is_err(), true);
 
@@ -494,6 +499,7 @@ mod tests {
                     number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
+                public_key: "herp derp".into(),
             });
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
@@ -516,6 +522,7 @@ mod tests {
                 }),
                 password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
                     .into(),
+                public_key: "herp derp".into(),
             });
             assert_eq!(result.is_err(), true);
             assert_eq!(email_in_table(&db_pool, "bob2@aol.com"), false);
@@ -549,6 +556,7 @@ mod tests {
                     number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
+                public_key: "herp derp".into(),
             });
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);

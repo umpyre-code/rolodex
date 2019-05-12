@@ -14,6 +14,7 @@ pub struct User {
     pub full_name: String,
     pub email: String,
     pub phone_number: String,
+    pub public_key: String,
 }
 
 #[derive(Queryable, Associations, Identifiable)]

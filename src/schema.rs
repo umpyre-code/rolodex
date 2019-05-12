@@ -18,9 +18,13 @@ table! {
         full_name -> Text,
         password_hash -> Text,
         phone_number -> Text,
+        public_key -> Text,
     }
 }
 
 joinable!(unique_email_addresses -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(unique_email_addresses, users,);
+allow_tables_to_appear_in_same_query!(
+    unique_email_addresses,
+    users,
+);
