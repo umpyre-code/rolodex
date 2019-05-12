@@ -275,7 +275,6 @@ impl server::Rolodex for Rolodex {
     }
 }
 
-
 // impl server::Rolodex for Rolodex {
 //     type CheckFuture =
 //         future::FutureResult<Response<HealthCheckResponse>, rolodex_grpc::tower_grpc::Status>;
