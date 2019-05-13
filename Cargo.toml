@@ -1,7 +1,11 @@
+cargo-features = ["default-run"]
+
 [package]
 name = "rolodex"
 version = "0.1.0"
 authors = ["Brenden Matthews <brenden@brndn.io>"]
+
+default-run = "rolodex"
 
 [dependencies]
 chrono = { version = "0.4"  }
@@ -31,3 +35,4 @@ trust-dns = { version = "0.16", default-features = false, features = ["dns-over-
 url = "1"
 uuid = "0.7"
 yansi = "0.5"
+hyper = "0.12"

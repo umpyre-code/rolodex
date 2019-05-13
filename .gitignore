@@ -11,3 +11,6 @@
 
 # Ignore dotenv
 .env
+
+# Ignore GCP sql proxy
+cloud_sql_proxy
