@@ -171,8 +171,8 @@ impl Rolodex {
     #[instrument(INFO)]
     fn handle_add_user(&self, request: &NewUserRequest) -> Result<NewUserResponse, RequestError> {
         let number = if let Some(phone_number) = &request.phone_number {
-            let country = phone_number.country.parse().unwrap();
-            let number = phonenumber::parse(Some(country), &phone_number.number)?;
+            let country = phone_number.country_code.parse().unwrap();
+            let number = phonenumber::parse(Some(country), &phone_number.national_number)?;
             let phonenumber_valid = number.is_valid();
             if !phonenumber_valid {
                 return Err(RequestError::InvalidPhoneNumber {

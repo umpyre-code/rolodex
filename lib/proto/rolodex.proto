@@ -11,8 +11,8 @@ service Rolodex {
 }
 
 message PhoneNumber {
-  string country = 1; // Two-letter country (CA, US, UK, ...)
-  string number = 2;  // National number
+  string country_code = 1; // Two-letter country (CA, US, UK, ...)
+  string national_number = 2;
 }
 
 message NewUserRequest {
