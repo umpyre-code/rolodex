@@ -27,6 +27,7 @@ message NewUserRequest {
   string email = 3;
   PhoneNumber phone_number = 4;
   string public_key = 5;
+  Location location = 6;
 }
 
 message NewUserResponse { string user_id = 1; }
