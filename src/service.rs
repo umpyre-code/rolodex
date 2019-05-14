@@ -364,8 +364,8 @@ mod tests {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
                 phone_number: Some(PhoneNumber {
-                    country: "US".into(),
-                    number: "4013213952".into(),
+                    country_code: "US".into(),
+                    national_number: "4013213952".into(),
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
@@ -435,8 +435,8 @@ mod tests {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
                 phone_number: Some(PhoneNumber {
-                    country: "US".into(),
-                    number: "4013213953".into(),
+                    country_code: "US".into(),
+                    national_number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
@@ -457,8 +457,8 @@ mod tests {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
                 phone_number: Some(PhoneNumber {
-                    country: "US".into(),
-                    number: "4013213954".into(),
+                    country_code: "US".into(),
+                    national_number: "4013213954".into(),
                 }),
                 password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
                     .into(),
@@ -491,8 +491,8 @@ mod tests {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
                 phone_number: Some(PhoneNumber {
-                    country: "US".into(),
-                    number: "4013213953".into(),
+                    country_code: "US".into(),
+                    national_number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
@@ -513,8 +513,8 @@ mod tests {
                 full_name: "Bob Marley".into(),
                 email: "bob2@aol.com".into(),
                 phone_number: Some(PhoneNumber {
-                    country: "US".into(),
-                    number: "4013213953".into(),
+                    country_code: "US".into(),
+                    national_number: "4013213953".into(),
                 }),
                 password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
                     .into(),
@@ -548,8 +548,8 @@ mod tests {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
                 phone_number: Some(PhoneNumber {
-                    country: "US".into(),
-                    number: "4013213953".into(),
+                    country_code: "US".into(),
+                    national_number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),

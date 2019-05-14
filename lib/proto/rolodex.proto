@@ -15,6 +15,12 @@ message PhoneNumber {
   string national_number = 2;
 }
 
+message Location {
+  string region = 1;
+  string region_subdivision = 2;
+  string city = 3;
+}
+
 message NewUserRequest {
   string full_name = 1;
   string password_hash = 2;
