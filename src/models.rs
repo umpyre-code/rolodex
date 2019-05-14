@@ -15,6 +15,20 @@ pub struct User {
     pub email: String,
     pub phone_number: String,
     pub public_key: String,
+    pub region: Option<String>,
+    pub region_subdivision: Option<String>,
+    pub city: Option<String>,
+}
+
+#[derive(Queryable, Insertable)]
+#[table_name = "users"]
+pub struct NewUser {
+    pub full_name: String,
+    pub phone_number: String,
+    pub public_key: String,
+    pub region: Option<String>,
+    pub region_subdivision: Option<String>,
+    pub city: Option<String>,
 }
 
 #[derive(Queryable, Associations, Identifiable)]

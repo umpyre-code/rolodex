@@ -12,7 +12,7 @@ use rolodex_grpc::tower_grpc::{Request, Response};
 
 lazy_static! {
     static ref USER_ADDED: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new("new_user_added", "New user added").unwrap();
+        let counter = prometheus::IntCounter::new("user_added", "New user added").unwrap();
         register(Box::new(counter.clone())).unwrap();
         counter
     };
@@ -193,19 +193,33 @@ impl Rolodex {
         let email_as_entered = email.email_as_entered.clone();
         let email_without_labels = email.email_without_labels.clone();
 
+        let (region, region_subdivision, city) = if let Some(location) = &request.location {
+            (
+                Some(location.region.clone()),
+                Some(location.region_subdivision.clone()),
+                Some(location.city.clone()),
+            )
+        } else {
+            (None, None, None)
+        };
+
+        let fields = (
+            users::dsl::full_name.eq(request.full_name.clone()),
+            users::dsl::password_hash.eq(crypt(request.password_hash.clone(), gen_salt("bf", 8))),
+            users::dsl::phone_number.eq(number
+                .format()
+                .mode(phonenumber::Mode::International)
+                .to_string()),
+            users::dsl::public_key.eq(request.public_key.clone()),
+            users::dsl::region.eq(region),
+            users::dsl::region_subdivision.eq(region_subdivision),
+            users::dsl::city.eq(city),
+        );
+
         let conn = self.db_writer.get().unwrap();
         let user = conn.transaction::<_, Error, _>(|| {
             let user: User = diesel::insert_into(users::table)
-                .values(&vec![(
-                    users::dsl::full_name.eq(request.full_name.clone()),
-                    users::dsl::password_hash
-                        .eq(crypt(request.password_hash.clone(), gen_salt("bf", 8))),
-                    users::dsl::phone_number.eq(number
-                        .format()
-                        .mode(phonenumber::Mode::International)
-                        .to_string()),
-                    users::dsl::public_key.eq(request.public_key.clone()),
-                )])
+                .values(&vec![fields])
                 .get_result(&conn)?;
 
             let new_unique_email_address = NewUniqueEmailAddress {
@@ -369,6 +383,11 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
+                location: Some(Location {
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
@@ -440,6 +459,11 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
+                location: Some(Location {
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
@@ -463,6 +487,11 @@ mod tests {
                 password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
                     .into(),
                 public_key: "herp derp".into(),
+                location: Some(Location {
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(result.is_err(), true);
 
@@ -496,6 +525,11 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
+                location: Some(Location {
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
@@ -519,6 +553,11 @@ mod tests {
                 password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
                     .into(),
                 public_key: "herp derp".into(),
+                location: Some(Location {
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(result.is_err(), true);
             assert_eq!(email_in_table(&db_pool, "bob2@aol.com"), false);
@@ -553,6 +592,11 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
+                location: Some(Location {
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(result.is_ok(), true);
             assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);

@@ -19,6 +19,9 @@ table! {
         password_hash -> Text,
         phone_number -> Text,
         public_key -> Text,
+        region -> Nullable<Text>,
+        region_subdivision -> Nullable<Text>,
+        city -> Nullable<Text>,
     }
 }
 
