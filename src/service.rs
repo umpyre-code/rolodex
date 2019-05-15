@@ -18,7 +18,8 @@ lazy_static! {
     };
     static ref USER_AUTHED: prometheus::IntCounter = {
         let counter =
-            prometheus::IntCounter::new("client_authed", "Client authenticated successfully").unwrap();
+            prometheus::IntCounter::new("client_authed", "Client authenticated successfully")
+                .unwrap();
         register(Box::new(counter.clone())).unwrap();
         counter
     };
@@ -169,7 +170,10 @@ impl Rolodex {
 
     /// Returns the client_id for this client if account creation succeeded
     #[instrument(INFO)]
-    fn handle_add_client(&self, request: &NewClientRequest) -> Result<NewClientResponse, RequestError> {
+    fn handle_add_client(
+        &self,
+        request: &NewClientRequest,
+    ) -> Result<NewClientResponse, RequestError> {
         let number = if let Some(phone_number) = &request.phone_number {
             let country = phone_number.country_code.parse().unwrap();
             let number = phonenumber::parse(Some(country), &phone_number.national_number)?;
@@ -241,7 +245,10 @@ impl Rolodex {
 
     /// Returns the client_id for this client if account creation succeeded
     #[instrument(INFO)]
-    fn handle_get_client(&self, request: &GetClientRequest) -> Result<GetClientResponse, RequestError> {
+    fn handle_get_client(
+        &self,
+        request: &GetClientRequest,
+    ) -> Result<GetClientResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
 
         let conn = self.db_reader.get().unwrap();
@@ -251,6 +258,15 @@ impl Rolodex {
             .first(&conn)?;
 
         Ok(client.into())
+    }
+
+    // Updates the underlying client model
+    #[instrument(INFO)]
+    fn handle_update_client(
+        &self,
+        request: &UpdateClientRequest,
+    ) -> Result<UpdateClientResponse, RequestError> {
+        Ok(UpdateClientResponse {})
     }
 }
 
@@ -283,6 +299,67 @@ impl server::Rolodex for Rolodex {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_get_client(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
+    type UpdateClientFuture = future::FutureResult<
+        Response<UpdateClientPublicKeyResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn update_client_public_key(
+        &mut self,
+        request: Request<UpdateClientRequest>,
+    ) -> Self::UpdateClientFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_update_client(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+    type UpdateClientPublicKeyFuture = future::FutureResult<
+        Response<UpdateClientPublicKeyResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn update_client_public_key(
+        &mut self,
+        request: Request<UpdateClientPublicKeyRequest>,
+    ) -> Self::UpdateClientPublicKeyFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_update_client_public_key(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+    type UpdateClientEmailFuture = future::FutureResult<
+        Response<UpdateClientPublicKeyResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn update_client_email(
+        &mut self,
+        request: Request<UpdateClientPublicKeyRequest>,
+    ) -> Self::UpdateClientPublicKeyFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_update_client_email(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+    type UpdateClientPublicKeyFuture = future::FutureResult<
+        Response<UpdateClientPhoneNumberResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn update_client_phone_number(
+        &mut self,
+        request: Request<UpdateClientPhoneNumberRequest>,
+    ) -> Self::UpdateClientPhoneNumberFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_update_client_phone_number(request.get_ref())
             .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()

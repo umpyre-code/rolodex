@@ -27,7 +27,4 @@ table! {
 
 joinable!(unique_email_addresses -> clients (client_id));
 
-allow_tables_to_appear_in_same_query!(
-    clients,
-    unique_email_addresses,
-);
+allow_tables_to_appear_in_same_query!(clients, unique_email_addresses,);

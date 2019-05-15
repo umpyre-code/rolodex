@@ -1,7 +1,7 @@
 extern crate uuid;
 
-use crate::schema::unique_email_addresses;
 use crate::schema::clients;
+use crate::schema::unique_email_addresses;
 use chrono::NaiveDateTime;
 
 /// This represents the private (internal) client model

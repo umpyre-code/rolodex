@@ -6,20 +6,27 @@ option java_package = "rolodex";
 service Rolodex {
   // Add a new client account
   rpc AddClient(NewClientRequest) returns (NewClientResponse);
+
   // Authenticate a client
   rpc Authenticate(AuthRequest) returns (AuthResponse);
+
   // Get public client model
   rpc GetClient(GetClientRequest) returns (GetClientResponse);
 
   // Update a client's account details
   rpc UpdateClient(UpdateClientRequest) returns (UpdateClientResponse);
-  // Change client's public key
-  rpc ChangePublicKey(ChangePasswordRequest) returns (ChangePasswordResponse);
-  // Change a client's contact email address
-  rpc ChangeEmail(ChangeEmailRequest) returns (ChangeEmailResponse);
-  // Change a client's contact phone number
-  rpc ChangePhoneNumber(ChangePhoneNumberRequest)
-      returns (ChangePhoneNumberResponse);
+
+  // Update a client's public key
+  rpc UpdateClientPublicKey(UpdateClientPasswordRequest)
+      returns (UpdateClientPasswordResponse);
+
+  // Update a client's contact email address
+  rpc UpdateClientEmail(UpdateClientEmailRequest)
+      returns (UpdateClientEmailResponse);
+
+  // Update a client's contact phone number
+  rpc UpdateClientPhoneNumber(UpdateClientPhoneNumberRequest)
+      returns (UpdateClientPhoneNumberResponse);
 
   // Health check endpoint
   rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
@@ -31,23 +38,23 @@ enum Result {
   UNAUTHORIZED = 2;
 }
 
-message ChangePasswordRequest {
+message UpdateClientPasswordRequest {
   string client_id = 1;
   string password_hash = 2;
 }
-message ChangePasswordResponse { Result result = 1; }
+message UpdateClientPasswordResponse { Result result = 1; }
 
-message ChangeEmailRequest {
+message UpdateClientEmailRequest {
   string client_id = 1;
   string email = 2;
 }
-message ChangeEmailResponse { Result result = 1; }
+message UpdateClientEmailResponse { Result result = 1; }
 
-message ChangePhoneNumberRequest {
+message UpdateClientPhoneNumberRequest {
   string client_id = 1;
   PhoneNumber phone_number = 2;
 }
-message ChangePhoneNumberResponse { Result result = 1; }
+message UpdateClientPhoneNumberResponse { Result result = 1; }
 
 // The public representation of a client
 message Client {
