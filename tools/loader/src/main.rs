@@ -1,17 +1,26 @@
 extern crate data_encoding;
 extern crate redis;
 extern crate reqwest;
-extern crate ring;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
 extern crate url;
 #[macro_use]
 extern crate failure;
+extern crate sodiumoxide;
 
 use redis::Commands;
 use redis::PipelineCommands;
 use url::Url;
+
+fn b2b_hash(s: &str, digest_size: usize) -> String {
+    use data_encoding::BASE64_NOPAD;
+    use sodiumoxide::crypto::generichash;
+    let mut hasher = generichash::State::new(digest_size, None).unwrap();
+    hasher.update(s.as_bytes()).unwrap();
+    let digest = hasher.finalize().unwrap();
+    BASE64_NOPAD.encode(digest.as_ref())
+}
 
 #[derive(Debug, Fail)]
 enum Error {
@@ -125,14 +134,11 @@ fn update_banned_domains_list(
 }
 
 fn parse_banned_passwords_list(list: String) -> Vec<String> {
-    use ring::digest;
-
     list.lines()
         .map(str::trim) // trim leading/trailing whitespace
         .filter(|s| !s.is_empty()) // remove empty lines
         .map(|s| {
-            let digest = digest::digest(&digest::SHA256, s.as_bytes());
-            data_encoding::HEXLOWER_PERMISSIVE.encode(digest.as_ref())
+            b2b_hash(s, 64)
         })
         .collect()
 }
