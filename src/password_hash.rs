@@ -40,9 +40,9 @@ impl FromStr for PasswordHash {
     type Err = PasswordHashError;
 
     fn from_str(password_hash: &str) -> Result<Self, Self::Err> {
-        use data_encoding::HEXLOWER_PERMISSIVE;
-        let result = HEXLOWER_PERMISSIVE.decode(password_hash.as_bytes())?;
-        if result.len() != 32 {
+        use data_encoding::BASE64_NOPAD;
+        let result = BASE64_NOPAD.decode(password_hash.as_bytes())?;
+        if result.len() != 64 {
             Err(PasswordHashError::BadFormat {
                 password_hash: password_hash.into(),
             })
@@ -78,42 +78,24 @@ impl PasswordHash {
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
     #[test]
     fn test_into() {
-        let banned_hash: PasswordHash =
-            "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b85"
-                .parse()
-                .unwrap();
+        let banned_hash: PasswordHash = "HyG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA".parse().unwrap();
         let not_banned_hash: PasswordHash =
-            "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
+            "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
                 .parse()
                 .unwrap();
 
         assert_eq!(
             banned_hash.digest,
-            "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b85"
-        );
-        assert_eq!(
-            banned_hash.digest_bytes,
-            [
-                65, 154, 99, 108, 204, 42, 165, 92, 115, 71, 199, 153, 113, 167, 56, 195, 16, 59,
-                52, 37, 75, 215, 156, 26, 61, 118, 125, 246, 42, 120, 139, 133
-            ]
+            "HyG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
         );
 
         assert_eq!(
             not_banned_hash.digest,
-            "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
-        );
-        assert_eq!(
-            not_banned_hash.digest_bytes,
-            [
-                65, 154, 99, 108, 204, 42, 165, 92, 115, 71, 199, 153, 113, 167, 56, 195, 16, 59,
-                52, 37, 75, 215, 156, 26, 61, 118, 125, 246, 42, 120, 139, 134
-            ]
+            "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
         );
     }
 
@@ -122,11 +104,11 @@ mod tests {
         use r2d2_redis::redis;
 
         let banned_hash: PasswordHash =
-            "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b85"
+            "HyG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
                 .parse()
                 .unwrap();
         let not_banned_hash: PasswordHash =
-            "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
+            "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
                 .parse()
                 .unwrap();
 

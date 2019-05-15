@@ -16,8 +16,8 @@ service Rolodex {
   // Update a client's account details
   rpc UpdateClient(UpdateClientRequest) returns (UpdateClientResponse);
 
-  // Update a client's public key
-  rpc UpdateClientPublicKey(UpdateClientPasswordRequest)
+  // Update a client's password hash
+  rpc UpdateClientPassword(UpdateClientPasswordRequest)
       returns (UpdateClientPasswordResponse);
 
   // Update a client's contact email address
@@ -38,21 +38,30 @@ enum Result {
   UNAUTHORIZED = 2;
 }
 
+message UpdateClientRequest {
+  Client client = 1;
+  Location location = 2;
+}
+message UpdateClientResponse { Result result = 1; }
+
 message UpdateClientPasswordRequest {
   string client_id = 1;
   string password_hash = 2;
+  Location location = 3;
 }
 message UpdateClientPasswordResponse { Result result = 1; }
 
 message UpdateClientEmailRequest {
   string client_id = 1;
   string email = 2;
+  Location location = 3;
 }
 message UpdateClientEmailResponse { Result result = 1; }
 
 message UpdateClientPhoneNumberRequest {
   string client_id = 1;
   PhoneNumber phone_number = 2;
+  Location location = 3;
 }
 message UpdateClientPhoneNumberResponse { Result result = 1; }
 
@@ -73,9 +82,6 @@ message NewClientRequest {
   Location location = 6;
 }
 message NewClientResponse { string client_id = 1; }
-
-message UpdateClientRequest { Client client = 1; }
-message UpdateClientResponse { Result result = 1; }
 
 // Authenticate a client
 message AuthRequest {

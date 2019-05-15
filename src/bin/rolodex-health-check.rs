@@ -15,7 +15,7 @@ extern crate failure;
 
 use futures::Future;
 use hyper::client::connect::{Destination, HttpConnector};
-use rolodex_grpc::proto::*;
+use rolodex_grpc::proto;
 use rolodex_grpc::tower_grpc::Request;
 use std::env;
 use tower_hyper::{client, util};
@@ -103,7 +103,7 @@ pub fn main() -> Result<(), Error> {
                 Rolodex::new(conn).ready()
             })
             .and_then(|mut client| {
-                client.check(Request::new(HealthCheckRequest {
+                client.check(Request::new(proto::HealthCheckRequest {
                     service: "rolodex".into(),
                 }))
             })
@@ -117,7 +117,7 @@ pub fn main() -> Result<(), Error> {
     info!("{:?}", result);
 
     if let Ok(response) = result {
-        if response.status == health_check_response::ServingStatus::Serving as i32 {
+        if response.status == proto::health_check_response::ServingStatus::Serving as i32 {
             Ok(())
         } else {
             Err(Error::NotServing)

@@ -7,16 +7,81 @@ use diesel::sql_types::{Integer, Text};
 use email::Email;
 use futures::future;
 use instrumented::{instrument, prometheus, register};
-use rolodex_grpc::proto::*;
+use password_hash;
 use rolodex_grpc::tower_grpc::{Request, Response};
+use rolodex_grpc::proto;
+
 
 lazy_static! {
-    static ref USER_ADDED: prometheus::IntCounter = {
+    static ref CLIENT_ADDED: prometheus::IntCounter = {
         let counter = prometheus::IntCounter::new("client_added", "New client added").unwrap();
         register(Box::new(counter.clone())).unwrap();
         counter
     };
-    static ref USER_AUTHED: prometheus::IntCounter = {
+    static ref CLIENT_ADD_FAILED_INVALID_PHONE_NUMBER: prometheus::IntCounter = {
+        let counter = prometheus::IntCounter::new(
+            "client_add_failed_invalid_phone_number",
+            "Failed to add a client because of an invalid phone number",
+        )
+        .unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref CLIENT_ADD_FAILED_PHONE_NUMBER_OMITTED: prometheus::IntCounter = {
+        let counter = prometheus::IntCounter::new(
+            "client_add_failed_phone_number_omitted",
+            "Failed to add a client because phone number was not specified",
+        )
+        .unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref CLIENT_ADD_FAILED_INVALID_EMAIL: prometheus::IntCounter = {
+        let counter = prometheus::IntCounter::new(
+            "client_add_failed_invaled_email",
+            "Failed to add a client because of a bad email address",
+        )
+        .unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref CLIENT_ADD_FAILED_DUPLICATE_EMAIL: prometheus::IntCounter = {
+        let counter = prometheus::IntCounter::new(
+            "client_add_failed_duplicate_email",
+            "Failed to add a client because of email address is a duplicate",
+        )
+        .unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref CLIENT_ADD_FAILED_BANNED_EMAIL_DOMAIN: prometheus::IntCounter = {
+        let counter = prometheus::IntCounter::new(
+            "client_add_failed_banned_email_domain",
+            "Failed to add a client because email address is from a banned domain",
+        )
+        .unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref CLIENT_ADD_FAILED_EMAIL_DOMAIN_INVALID_SUFFIX: prometheus::IntCounter = {
+        let counter = prometheus::IntCounter::new(
+            "client_add_failed_email_domain_invalid_suffix",
+            "Failed to add a client because email domain had an invalid suffix",
+        )
+        .unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref CLIENT_ADD_FAILED_WEAK_PASSWORD: prometheus::IntCounter = {
+        let counter = prometheus::IntCounter::new(
+            "client_add_failed_weak_password",
+            "Failed to add a client because of a weak password",
+        )
+        .unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref CLIENT_AUTHED: prometheus::IntCounter = {
         let counter =
             prometheus::IntCounter::new("client_authed", "Client authenticated successfully")
                 .unwrap();
@@ -39,6 +104,8 @@ enum RequestError {
     InvalidPhoneNumber { err: String },
     #[fail(display = "invalid email: {}", email)]
     InvalidEmail { email: String },
+    #[fail(display = "invalid password: {}", err)]
+    InvalidPassword { err: String },
     #[fail(display = "database error: {}", err)]
     DatabaseError { err: String },
     #[fail(display = "email domain DNS failure: {}", err)]
@@ -76,12 +143,30 @@ impl From<failure::Error> for RequestError {
     }
 }
 
+impl From<password_hash::PasswordHashError> for RequestError {
+    fn from(err: password_hash::PasswordHashError) -> RequestError {
+        RequestError::InvalidPassword {
+            err: format!("{}", err),
+        }
+    }
+}
+
 impl From<email::EmailError> for RequestError {
     fn from(err: email::EmailError) -> RequestError {
+        CLIENT_ADD_FAILED_INVALID_EMAIL.inc();
         match err {
-            email::EmailError::BadFormat { email } => RequestError::InvalidEmail { email },
-            email::EmailError::BannedDomain { email } => RequestError::InvalidEmail { email },
-            email::EmailError::InvalidSuffix { email } => RequestError::InvalidEmail { email },
+            email::EmailError::BadFormat { email } => {
+                CLIENT_ADD_FAILED_INVALID_EMAIL.inc();
+                RequestError::InvalidEmail { email }
+            }
+            email::EmailError::BannedDomain { email } => {
+                CLIENT_ADD_FAILED_BANNED_EMAIL_DOMAIN.inc();
+                RequestError::InvalidEmail { email }
+            }
+            email::EmailError::InvalidSuffix { email } => {
+                CLIENT_ADD_FAILED_EMAIL_DOMAIN_INVALID_SUFFIX.inc();
+                RequestError::InvalidEmail { email }
+            }
             email::EmailError::DatabaseError { err } => RequestError::DatabaseError { err },
             email::EmailError::InvalidDomain { email } => RequestError::InvalidEmail { email },
             email::EmailError::DNSFailure { err } => RequestError::EmailDNSFailure { err },
@@ -100,24 +185,26 @@ impl From<uuid::parser::ParseError> for RequestError {
 impl From<Client> for rolodex_grpc::proto::GetClientResponse {
     fn from(client: Client) -> rolodex_grpc::proto::GetClientResponse {
         rolodex_grpc::proto::GetClientResponse {
-            client_id: client.uuid.to_simple().to_string(),
-            full_name: client.full_name,
-            public_key: client.public_key,
+            client: Some(proto::Client {
+                client_id: client.uuid.to_simple().to_string(),
+                full_name: client.full_name,
+                public_key: client.public_key,
+            }),
         }
     }
 }
 
-impl From<Client> for rolodex_grpc::proto::AuthResponse {
-    fn from(client: Client) -> rolodex_grpc::proto::AuthResponse {
-        rolodex_grpc::proto::AuthResponse {
+impl From<Client> for proto::AuthResponse {
+    fn from(client: Client) -> proto::AuthResponse {
+        proto::AuthResponse {
             client_id: client.uuid.to_simple().to_string(),
         }
     }
 }
 
-impl From<Client> for rolodex_grpc::proto::NewClientResponse {
-    fn from(client: Client) -> rolodex_grpc::proto::NewClientResponse {
-        rolodex_grpc::proto::NewClientResponse {
+impl From<Client> for proto::NewClientResponse {
+    fn from(client: Client) -> proto::NewClientResponse {
+        proto::NewClientResponse {
             client_id: client.uuid.to_simple().to_string(),
         }
     }
@@ -148,7 +235,10 @@ impl Rolodex {
 
     /// Returns the client_id for this client if auth succeeds
     #[instrument(INFO)]
-    fn handle_authenticate(&self, request: &AuthRequest) -> Result<AuthResponse, RequestError> {
+    fn handle_authenticate(
+        &self,
+        request: &proto::AuthRequest,
+    ) -> Result<proto::AuthResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
 
         let conn = self.db_reader.get().unwrap();
@@ -164,7 +254,7 @@ impl Rolodex {
             )
             .first(&conn)?;
 
-        USER_AUTHED.inc();
+        CLIENT_AUTHED.inc();
         Ok(client.into())
     }
 
@@ -172,19 +262,22 @@ impl Rolodex {
     #[instrument(INFO)]
     fn handle_add_client(
         &self,
-        request: &NewClientRequest,
-    ) -> Result<NewClientResponse, RequestError> {
+        request: &proto::NewClientRequest,
+    ) -> Result<proto::NewClientResponse, RequestError> {
+        use password_hash::PasswordHash;
         let number = if let Some(phone_number) = &request.phone_number {
             let country = phone_number.country_code.parse().unwrap();
             let number = phonenumber::parse(Some(country), &phone_number.national_number)?;
             let phonenumber_valid = number.is_valid();
             if !phonenumber_valid {
+                CLIENT_ADD_FAILED_INVALID_PHONE_NUMBER.inc();
                 return Err(RequestError::InvalidPhoneNumber {
                     err: number.to_string(),
                 });
             }
             number
         } else {
+            CLIENT_ADD_FAILED_PHONE_NUMBER_OMITTED.inc();
             return Err(RequestError::InvalidPhoneNumber {
                 err: "no phone number specified".to_string(),
             });
@@ -196,6 +289,9 @@ impl Rolodex {
 
         let email_as_entered = email.email_as_entered.clone();
         let email_without_labels = email.email_without_labels.clone();
+
+        let password_hash: PasswordHash = request.password_hash.parse()?;
+        password_hash.check_validity(&*redis_conn)?;
 
         let (region, region_subdivision, city) = if let Some(location) = &request.location {
             (
@@ -209,7 +305,7 @@ impl Rolodex {
 
         let fields = (
             clients::dsl::full_name.eq(request.full_name.clone()),
-            clients::dsl::password_hash.eq(crypt(request.password_hash.clone(), gen_salt("bf", 8))),
+            clients::dsl::password_hash.eq(crypt(password_hash.digest, gen_salt("bf", 8))),
             clients::dsl::phone_number.eq(number
                 .format()
                 .mode(phonenumber::Mode::International)
@@ -239,7 +335,7 @@ impl Rolodex {
             Ok(client)
         })?;
 
-        USER_ADDED.inc();
+        CLIENT_ADDED.inc();
         Ok(client.into())
     }
 
@@ -247,8 +343,8 @@ impl Rolodex {
     #[instrument(INFO)]
     fn handle_get_client(
         &self,
-        request: &GetClientRequest,
-    ) -> Result<GetClientResponse, RequestError> {
+        request: &proto::GetClientRequest,
+    ) -> Result<proto::GetClientResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
 
         let conn = self.db_reader.get().unwrap();
@@ -264,16 +360,51 @@ impl Rolodex {
     #[instrument(INFO)]
     fn handle_update_client(
         &self,
-        request: &UpdateClientRequest,
-    ) -> Result<UpdateClientResponse, RequestError> {
-        Ok(UpdateClientResponse {})
+        request: &proto::UpdateClientRequest,
+    ) -> Result<proto::UpdateClientResponse, RequestError> {
+        Ok(proto::UpdateClientResponse {
+            result: proto::Result::Success as i32,
+        })
+    }
+
+    // Updates the underlying client model
+    #[instrument(INFO)]
+    fn handle_update_client_password(
+        &self,
+        request: &proto::UpdateClientPasswordRequest,
+    ) -> Result<proto::UpdateClientPasswordResponse, RequestError> {
+        Ok(proto::UpdateClientPasswordResponse {
+            result: proto::Result::Success as i32,
+        })
+    }
+
+    // Updates the underlying client model
+    #[instrument(INFO)]
+    fn handle_update_client_email(
+        &self,
+        request: &proto::UpdateClientEmailRequest,
+    ) -> Result<proto::UpdateClientEmailResponse, RequestError> {
+        Ok(proto::UpdateClientEmailResponse {
+            result: proto::Result::Success as i32,
+        })
+    }
+
+    // Updates the underlying client model
+    #[instrument(INFO)]
+    fn handle_update_client_phone_number(
+        &self,
+        request: &proto::UpdateClientPhoneNumberRequest,
+    ) -> Result<proto::UpdateClientPhoneNumberResponse, RequestError> {
+        Ok(proto::UpdateClientPhoneNumberResponse {
+            result: proto::Result::Success as i32,
+        })
     }
 }
 
-impl server::Rolodex for Rolodex {
+impl proto::server::Rolodex for Rolodex {
     type AuthenticateFuture =
-        future::FutureResult<Response<AuthResponse>, rolodex_grpc::tower_grpc::Status>;
-    fn authenticate(&mut self, request: Request<AuthRequest>) -> Self::AuthenticateFuture {
+        future::FutureResult<Response<proto::AuthResponse>, rolodex_grpc::tower_grpc::Status>;
+    fn authenticate(&mut self, request: Request<proto::AuthRequest>) -> Self::AuthenticateFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_authenticate(request.get_ref())
@@ -283,8 +414,8 @@ impl server::Rolodex for Rolodex {
     }
 
     type AddClientFuture =
-        future::FutureResult<Response<NewClientResponse>, rolodex_grpc::tower_grpc::Status>;
-    fn add_client(&mut self, request: Request<NewClientRequest>) -> Self::AddClientFuture {
+        future::FutureResult<Response<proto::NewClientResponse>, rolodex_grpc::tower_grpc::Status>;
+    fn add_client(&mut self, request: Request<proto::NewClientRequest>) -> Self::AddClientFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_add_client(request.get_ref())
@@ -294,8 +425,8 @@ impl server::Rolodex for Rolodex {
     }
 
     type GetClientFuture =
-        future::FutureResult<Response<GetClientResponse>, rolodex_grpc::tower_grpc::Status>;
-    fn get_client(&mut self, request: Request<GetClientRequest>) -> Self::GetClientFuture {
+        future::FutureResult<Response<proto::GetClientResponse>, rolodex_grpc::tower_grpc::Status>;
+    fn get_client(&mut self, request: Request<proto::GetClientRequest>) -> Self::GetClientFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_get_client(request.get_ref())
@@ -305,12 +436,12 @@ impl server::Rolodex for Rolodex {
     }
 
     type UpdateClientFuture = future::FutureResult<
-        Response<UpdateClientPublicKeyResponse>,
+        Response<proto::UpdateClientResponse>,
         rolodex_grpc::tower_grpc::Status,
     >;
-    fn update_client_public_key(
+    fn update_client(
         &mut self,
-        request: Request<UpdateClientRequest>,
+        request: Request<proto::UpdateClientRequest>,
     ) -> Self::UpdateClientFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
@@ -319,29 +450,31 @@ impl server::Rolodex for Rolodex {
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
     }
-    type UpdateClientPublicKeyFuture = future::FutureResult<
-        Response<UpdateClientPublicKeyResponse>,
+
+    type UpdateClientPasswordFuture = future::FutureResult<
+        Response<proto::UpdateClientPasswordResponse>,
         rolodex_grpc::tower_grpc::Status,
     >;
-    fn update_client_public_key(
+    fn update_client_password(
         &mut self,
-        request: Request<UpdateClientPublicKeyRequest>,
-    ) -> Self::UpdateClientPublicKeyFuture {
+        request: Request<proto::UpdateClientPasswordRequest>,
+    ) -> Self::UpdateClientPasswordFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
-        self.handle_update_client_public_key(request.get_ref())
+        self.handle_update_client_password(request.get_ref())
             .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
     }
+
     type UpdateClientEmailFuture = future::FutureResult<
-        Response<UpdateClientPublicKeyResponse>,
+        Response<proto::UpdateClientEmailResponse>,
         rolodex_grpc::tower_grpc::Status,
     >;
     fn update_client_email(
         &mut self,
-        request: Request<UpdateClientPublicKeyRequest>,
-    ) -> Self::UpdateClientPublicKeyFuture {
+        request: Request<proto::UpdateClientEmailRequest>,
+    ) -> Self::UpdateClientEmailFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_update_client_email(request.get_ref())
@@ -349,13 +482,14 @@ impl server::Rolodex for Rolodex {
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
     }
-    type UpdateClientPublicKeyFuture = future::FutureResult<
-        Response<UpdateClientPhoneNumberResponse>,
+
+    type UpdateClientPhoneNumberFuture = future::FutureResult<
+        Response<proto::UpdateClientPhoneNumberResponse>,
         rolodex_grpc::tower_grpc::Status,
     >;
     fn update_client_phone_number(
         &mut self,
-        request: Request<UpdateClientPhoneNumberRequest>,
+        request: Request<proto::UpdateClientPhoneNumberRequest>,
     ) -> Self::UpdateClientPhoneNumberFuture {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
@@ -365,11 +499,13 @@ impl server::Rolodex for Rolodex {
             .into_future()
     }
 
-    type CheckFuture =
-        future::FutureResult<Response<HealthCheckResponse>, rolodex_grpc::tower_grpc::Status>;
-    fn check(&mut self, _request: Request<HealthCheckRequest>) -> Self::CheckFuture {
-        future::ok(Response::new(HealthCheckResponse {
-            status: health_check_response::ServingStatus::Serving as i32,
+    type CheckFuture = future::FutureResult<
+        Response<proto::HealthCheckResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn check(&mut self, _request: Request<proto::HealthCheckRequest>) -> Self::CheckFuture {
+        future::ok(Response::new(proto::HealthCheckResponse {
+            status: proto::health_check_response::ServingStatus::Serving as i32,
         }))
     }
 }
@@ -449,18 +585,18 @@ mod tests {
                 redis_pool.clone(),
             );
 
-            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
 
-            let result = rolodex.handle_add_client(&NewClientRequest {
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
-                phone_number: Some(PhoneNumber {
+                phone_number: Some(proto::PhoneNumber {
                     country_code: "US".into(),
                     national_number: "4013213952".into(),
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
-                location: Some(Location {
+                location: Some(proto::Location {
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -471,7 +607,7 @@ mod tests {
 
             let client = result.unwrap();
 
-            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
             });
@@ -498,9 +634,9 @@ mod tests {
             );
 
             let client_id = "e9f272e503ff4b73891e77c766e8a251";
-            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
 
-            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client_id.to_string(),
                 password_hash: pw_hash.into(),
             });
@@ -525,18 +661,18 @@ mod tests {
                 redis_pool.clone(),
             );
 
-            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
 
-            let result = rolodex.handle_add_client(&NewClientRequest {
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
-                phone_number: Some(PhoneNumber {
+                phone_number: Some(proto::PhoneNumber {
                     country_code: "US".into(),
                     national_number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
-                location: Some(Location {
+                location: Some(proto::Location {
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -547,24 +683,24 @@ mod tests {
 
             let client = result.unwrap();
 
-            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
             });
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
 
-            let result = rolodex.handle_add_client(&NewClientRequest {
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
-                phone_number: Some(PhoneNumber {
+                phone_number: Some(proto::PhoneNumber {
                     country_code: "US".into(),
                     national_number: "4013213954".into(),
                 }),
-                password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
+                password_hash: "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
                     .into(),
                 public_key: "herp derp".into(),
-                location: Some(Location {
+                location: Some(proto::Location {
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -591,18 +727,18 @@ mod tests {
                 redis_pool.clone(),
             );
 
-            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
 
-            let result = rolodex.handle_add_client(&NewClientRequest {
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
-                phone_number: Some(PhoneNumber {
+                phone_number: Some(proto::PhoneNumber {
                     country_code: "US".into(),
                     national_number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
-                location: Some(Location {
+                location: Some(proto::Location {
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -613,24 +749,24 @@ mod tests {
 
             let client = result.unwrap();
 
-            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
             });
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
 
-            let result = rolodex.handle_add_client(&NewClientRequest {
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
                 full_name: "Bob Marley".into(),
                 email: "bob2@aol.com".into(),
-                phone_number: Some(PhoneNumber {
+                phone_number: Some(proto::PhoneNumber {
                     country_code: "US".into(),
                     national_number: "4013213953".into(),
                 }),
-                password_hash: "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86"
+                password_hash: "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
                     .into(),
                 public_key: "herp derp".into(),
-                location: Some(Location {
+                location: Some(proto::Location {
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -658,18 +794,18 @@ mod tests {
                 redis_pool.clone(),
             );
 
-            let pw_hash = "419a636ccc2aa55c7347c79971a738c3103b34254bd79c1a3d767df62a788b86";
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
 
-            let result = rolodex.handle_add_client(&NewClientRequest {
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
                 full_name: "Bob Marley".into(),
                 email: "bob@aol.com".into(),
-                phone_number: Some(PhoneNumber {
+                phone_number: Some(proto::PhoneNumber {
                     country_code: "US".into(),
                     national_number: "4013213953".into(),
                 }),
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
-                location: Some(Location {
+                location: Some(proto::Location {
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -680,20 +816,23 @@ mod tests {
 
             let client = result.unwrap();
 
-            let auth_result = rolodex.handle_authenticate(&AuthRequest {
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
             });
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
 
-            let get_client = rolodex.handle_get_client(&GetClientRequest {
+            let get_client = rolodex.handle_get_client(&proto::GetClientRequest {
                 client_id: client.client_id.to_string(),
                 calling_client_id: client.client_id.to_string(),
             });
 
             assert_eq!(get_client.is_ok(), true);
-            assert_eq!(get_client.unwrap().client_id, client.client_id);
+            assert_eq!(
+                get_client.unwrap().client.unwrap().client_id,
+                client.client_id
+            );
 
             future::ok(())
         }));
