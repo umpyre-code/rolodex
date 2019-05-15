@@ -4,11 +4,85 @@ package rolodex;
 option java_package = "rolodex";
 
 service Rolodex {
+  // Add a new client account
   rpc AddClient(NewClientRequest) returns (NewClientResponse);
+  // Authenticate a client
   rpc Authenticate(AuthRequest) returns (AuthResponse);
+  // Get public client model
   rpc GetClient(GetClientRequest) returns (GetClientResponse);
+
+  // Update a client's account details
+  rpc UpdateClient(UpdateClientRequest) returns (UpdateClientResponse);
+  // Change client's public key
+  rpc ChangePublicKey(ChangePasswordRequest) returns (ChangePasswordResponse);
+  // Change a client's contact email address
+  rpc ChangeEmail(ChangeEmailRequest) returns (ChangeEmailResponse);
+  // Change a client's contact phone number
+  rpc ChangePhoneNumber(ChangePhoneNumberRequest)
+      returns (ChangePhoneNumberResponse);
+
+  // Health check endpoint
   rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
 }
+
+enum Result {
+  SUCCESS = 0;
+  FAILURE = 1;
+  UNAUTHORIZED = 2;
+}
+
+message ChangePasswordRequest {
+  string client_id = 1;
+  string password_hash = 2;
+}
+message ChangePasswordResponse { Result result = 1; }
+
+message ChangeEmailRequest {
+  string client_id = 1;
+  string email = 2;
+}
+message ChangeEmailResponse { Result result = 1; }
+
+message ChangePhoneNumberRequest {
+  string client_id = 1;
+  PhoneNumber phone_number = 2;
+}
+message ChangePhoneNumberResponse { Result result = 1; }
+
+// The public representation of a client
+message Client {
+  string client_id = 1;
+  string full_name = 2;
+  string public_key = 3;
+}
+
+// For creating new client accounts only
+message NewClientRequest {
+  string full_name = 1;
+  string password_hash = 2;
+  string email = 3;
+  PhoneNumber phone_number = 4;
+  string public_key = 5;
+  Location location = 6;
+}
+message NewClientResponse { string client_id = 1; }
+
+message UpdateClientRequest { Client client = 1; }
+message UpdateClientResponse { Result result = 1; }
+
+// Authenticate a client
+message AuthRequest {
+  string client_id = 1;
+  string password_hash = 2;
+}
+message AuthResponse { string client_id = 1; }
+
+// Fetch public client info
+message GetClientRequest {
+  string calling_client_id = 1;
+  string client_id = 2;
+}
+message GetClientResponse { Client client = 1; }
 
 message PhoneNumber {
   string country_code = 1; // Two-letter country (CA, US, UK, ...)
@@ -19,35 +93,6 @@ message Location {
   string region = 1;
   string region_subdivision = 2;
   string city = 3;
-}
-
-message NewClientRequest {
-  string full_name = 1;
-  string password_hash = 2;
-  string email = 3;
-  PhoneNumber phone_number = 4;
-  string public_key = 5;
-  Location location = 6;
-}
-
-message NewClientResponse { string client_id = 1; }
-
-message AuthRequest {
-  string client_id = 1;
-  string password_hash = 2;
-}
-
-message AuthResponse { string client_id = 1; }
-
-message GetClientRequest {
-  string calling_client_id = 1;
-  string client_id = 2;
-}
-
-message GetClientResponse {
-  string client_id = 1;
-  string full_name = 2;
-  string public_key = 3;
 }
 
 message HealthCheckRequest { string service = 1; }
