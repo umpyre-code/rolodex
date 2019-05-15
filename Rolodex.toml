@@ -8,7 +8,7 @@ bind_to_address = "127.0.0.1:10011"
 [database.writer]
 host = "127.0.0.1"
 port = 5432
-username = "postgres"
+clientname = "postgres"
 password = "password"
 name = "umpyre"
 connection_pool_size = 10
@@ -16,7 +16,7 @@ connection_pool_size = 10
 [database.reader]
 host = "127.0.0.1"
 port = 5432
-username = "postgres"
+clientname = "postgres"
 password = "password"
 name = "umpyre"
 connection_pool_size = 10

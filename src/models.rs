@@ -1,12 +1,12 @@
 extern crate uuid;
 
 use crate::schema::unique_email_addresses;
-use crate::schema::users;
+use crate::schema::clients;
 use chrono::NaiveDateTime;
 
-/// This represents the private (internal) user model
+/// This represents the private (internal) client model
 #[derive(Queryable, Identifiable)]
-pub struct User {
+pub struct Client {
     pub id: i64,
     pub uuid: uuid::Uuid,
     pub created_at: NaiveDateTime,
@@ -21,8 +21,8 @@ pub struct User {
 }
 
 #[derive(Queryable, Insertable)]
-#[table_name = "users"]
-pub struct NewUser {
+#[table_name = "clients"]
+pub struct NewClient {
     pub full_name: String,
     pub phone_number: String,
     pub public_key: String,
@@ -33,22 +33,22 @@ pub struct NewUser {
 
 #[derive(Queryable, Associations, Identifiable)]
 #[table_name = "unique_email_addresses"]
-#[belongs_to(User)]
+#[belongs_to(Client)]
 pub struct UniqueEmailAddress {
     pub id: i64,
-    pub user_id: i64,
+    pub client_id: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub email_as_entered: String,
     pub email_without_labels: String,
 }
 
-/// This represents all internal user email addresses
+/// This represents all internal client email addresses
 #[derive(AsChangeset, Insertable, Associations)]
 #[table_name = "unique_email_addresses"]
-#[belongs_to(User)]
+#[belongs_to(Client)]
 pub struct NewUniqueEmailAddress {
-    pub user_id: i64,
+    pub client_id: i64,
     pub email_as_entered: String,
     pub email_without_labels: String,
 }

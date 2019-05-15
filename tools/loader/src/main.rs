@@ -108,7 +108,7 @@ fn update_banned_domains_list(
     reqwest_client: &reqwest::Client,
     redis_client: &redis::Client,
 ) -> Result<(), Error> {
-    let banned_domains_url = Url::parse("https://raw.githubusercontent.com/martenson/disposable-email-domains/master/disposable_email_blocklist.conf")?;
+    let banned_domains_url = Url::parse("https://raw.githubclientcontent.com/martenson/disposable-email-domains/master/disposable_email_blocklist.conf")?;
     info!("Fetching banned domains list from {}", banned_domains_url);
 
     let banned_domains_list =
@@ -141,7 +141,7 @@ fn update_banned_password_hashes_list(
     reqwest_client: &reqwest::Client,
     redis_client: &redis::Client,
 ) -> Result<(), Error> {
-    let banned_passwords_url = Url::parse("https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt")?;
+    let banned_passwords_url = Url::parse("https://raw.githubclientcontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt")?;
     info!(
         "Fetching banned passwords list from {}",
         banned_passwords_url

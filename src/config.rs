@@ -32,7 +32,7 @@ pub struct Databases {
 pub struct Database {
     pub host: String,
     pub port: i32,
-    pub username: String,
+    pub clientname: String,
     pub password: String,
     pub name: String,
     pub connection_pool_size: u32,

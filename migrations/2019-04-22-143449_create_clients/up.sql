@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE clients (
   id BIGSERIAL PRIMARY KEY,
   uuid UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4 (),
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -9,5 +9,4 @@ CREATE TABLE users (
   public_key TEXT NOT NULL,
   region TEXT,
   region_subdivision TEXT,
-  city TEXT
-)
+  city TEXT)

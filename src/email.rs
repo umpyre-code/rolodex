@@ -33,7 +33,7 @@ pub struct Email {
     pub email_as_entered: String,
     pub email_without_labels: String,
     inbox: String,
-    user: String,
+    client: String,
     label: String,
     domain: String,
 }
@@ -69,7 +69,7 @@ impl FromStr for Email {
         if let Some(caps) = EMAIL_RE.captures(email) {
             let inbox = &caps["inbox"];
             let domain = &caps["domain"];
-            let (user, label) = if let Some(label_idx) = inbox.find('+') {
+            let (client, label) = if let Some(label_idx) = inbox.find('+') {
                 (&inbox[0..label_idx], &inbox[(label_idx + 1)..])
             } else {
                 (inbox, "")
@@ -77,9 +77,9 @@ impl FromStr for Email {
 
             Ok(Email {
                 email_as_entered: email.into(),
-                email_without_labels: format!("{}@{}", user, domain),
+                email_without_labels: format!("{}@{}", client, domain),
                 inbox: inbox.into(),
-                user: user.into(),
+                client: client.into(),
                 label: label.into(),
                 domain: domain.into(),
             })
@@ -178,7 +178,7 @@ mod tests {
 
         assert_eq!(email.domain, "brndn.io");
         assert_eq!(email.inbox, "brenden");
-        assert_eq!(email.user, "brenden");
+        assert_eq!(email.client, "brenden");
         assert_eq!(email.label, "");
         assert_eq!(email.email_as_entered, addr);
         assert_eq!(email.email_without_labels, addr);
@@ -191,7 +191,7 @@ mod tests {
 
         assert_eq!(email.domain, "brndn.io");
         assert_eq!(email.inbox, "brenden+hi");
-        assert_eq!(email.user, "brenden");
+        assert_eq!(email.client, "brenden");
         assert_eq!(email.label, "hi");
         assert_eq!(email.email_as_entered, addr);
         assert_eq!(email.email_without_labels, "brenden@brndn.io");
@@ -204,7 +204,7 @@ mod tests {
 
         assert_eq!(email.domain, "brndn.io");
         assert_eq!(email.inbox, "brenden+hi+lol");
-        assert_eq!(email.user, "brenden");
+        assert_eq!(email.client, "brenden");
         assert_eq!(email.label, "hi+lol");
         assert_eq!(email.email_as_entered, addr);
         assert_eq!(email.email_without_labels, "brenden@brndn.io");
@@ -217,7 +217,7 @@ mod tests {
 
         assert_eq!(email.domain, "brndn.io");
         assert_eq!(email.inbox, "brenden+");
-        assert_eq!(email.user, "brenden");
+        assert_eq!(email.client, "brenden");
         assert_eq!(email.label, "");
         assert_eq!(email.email_as_entered, addr);
         assert_eq!(email.email_without_labels, "brenden@brndn.io");

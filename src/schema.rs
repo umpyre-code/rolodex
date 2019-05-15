@@ -1,16 +1,5 @@
 table! {
-    unique_email_addresses (id) {
-        id -> Int8,
-        user_id -> Int8,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-        email_as_entered -> Text,
-        email_without_labels -> Text,
-    }
-}
-
-table! {
-    users (id) {
+    clients (id) {
         id -> Int8,
         uuid -> Uuid,
         created_at -> Timestamp,
@@ -25,6 +14,20 @@ table! {
     }
 }
 
-joinable!(unique_email_addresses -> users (user_id));
+table! {
+    unique_email_addresses (id) {
+        id -> Int8,
+        client_id -> Int8,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        email_as_entered -> Text,
+        email_without_labels -> Text,
+    }
+}
 
-allow_tables_to_appear_in_same_query!(unique_email_addresses, users,);
+joinable!(unique_email_addresses -> clients (client_id));
+
+allow_tables_to_appear_in_same_query!(
+    clients,
+    unique_email_addresses,
+);
