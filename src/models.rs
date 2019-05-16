@@ -1,7 +1,7 @@
 extern crate uuid;
 
-use crate::schema::clients;
-use crate::schema::unique_email_addresses;
+use crate::sql_types::*;
+use crate::schema::*;
 use chrono::NaiveDateTime;
 
 /// This represents the private (internal) client model
@@ -15,9 +15,6 @@ pub struct Client {
     pub email: String,
     pub phone_number: String,
     pub public_key: String,
-    pub region: Option<String>,
-    pub region_subdivision: Option<String>,
-    pub city: Option<String>,
 }
 
 #[derive(Queryable, Insertable)]
@@ -26,9 +23,6 @@ pub struct NewClient {
     pub full_name: String,
     pub phone_number: String,
     pub public_key: String,
-    pub region: Option<String>,
-    pub region_subdivision: Option<String>,
-    pub city: Option<String>,
 }
 
 #[derive(Queryable, Associations, Identifiable)]
@@ -51,4 +45,16 @@ pub struct NewUniqueEmailAddress {
     pub client_id: i64,
     pub email_as_entered: String,
     pub email_without_labels: String,
+}
+
+#[derive(AsChangeset, Insertable, Associations)]
+#[table_name = "client_account_actions"]
+#[belongs_to(Client)]
+pub struct NewClientAccountAction {
+    pub client_id: i64,
+    pub action: ClientAccountAction,
+    pub ip_address: Option<String>,
+    pub region: Option<String>,
+    pub region_subdivision: Option<String>,
+    pub city: Option<String>,
 }

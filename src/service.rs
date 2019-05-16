@@ -8,86 +8,51 @@ use email::Email;
 use futures::future;
 use instrumented::{instrument, prometheus, register};
 use password_hash;
-use rolodex_grpc::tower_grpc::{Request, Response};
 use rolodex_grpc::proto;
+use rolodex_grpc::tower_grpc::{Request, Response};
 
+fn make_intcounter(name: &str, description: &str) -> prometheus::IntCounter {
+    let counter = prometheus::IntCounter::new(name, description).unwrap();
+    register(Box::new(counter.clone())).unwrap();
+    counter
+}
 
 lazy_static! {
-    static ref CLIENT_ADDED: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new("client_added", "New client added").unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
-    static ref CLIENT_ADD_FAILED_INVALID_PHONE_NUMBER: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new(
-            "client_add_failed_invalid_phone_number",
-            "Failed to add a client because of an invalid phone number",
-        )
-        .unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
-    static ref CLIENT_ADD_FAILED_PHONE_NUMBER_OMITTED: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new(
-            "client_add_failed_phone_number_omitted",
-            "Failed to add a client because phone number was not specified",
-        )
-        .unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
-    static ref CLIENT_ADD_FAILED_INVALID_EMAIL: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new(
-            "client_add_failed_invaled_email",
-            "Failed to add a client because of a bad email address",
-        )
-        .unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
-    static ref CLIENT_ADD_FAILED_DUPLICATE_EMAIL: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new(
-            "client_add_failed_duplicate_email",
-            "Failed to add a client because of email address is a duplicate",
-        )
-        .unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
-    static ref CLIENT_ADD_FAILED_BANNED_EMAIL_DOMAIN: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new(
-            "client_add_failed_banned_email_domain",
-            "Failed to add a client because email address is from a banned domain",
-        )
-        .unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
-    static ref CLIENT_ADD_FAILED_EMAIL_DOMAIN_INVALID_SUFFIX: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new(
+    static ref CLIENT_ADDED: prometheus::IntCounter =
+        make_intcounter("client_added", "New client added");
+    static ref CLIENT_ADD_FAILED_INVALID_PHONE_NUMBER: prometheus::IntCounter = make_intcounter(
+        "client_add_failed_invalid_phone_number",
+        "Failed to add a client because of an invalid phone number",
+    );
+    static ref CLIENT_ADD_FAILED_PHONE_NUMBER_OMITTED: prometheus::IntCounter = make_intcounter(
+        "client_add_failed_phone_number_omitted",
+        "Failed to add a client because phone number was not specified",
+    );
+    static ref CLIENT_ADD_FAILED_INVALID_EMAIL: prometheus::IntCounter = make_intcounter(
+        "client_add_failed_invaled_email",
+        "Failed to add a client because of a bad email address",
+    );
+    static ref CLIENT_ADD_FAILED_DUPLICATE_EMAIL: prometheus::IntCounter = make_intcounter(
+        "client_add_failed_duplicate_email",
+        "Failed to add a client because of email address is a duplicate",
+    );
+    static ref CLIENT_ADD_FAILED_BANNED_EMAIL_DOMAIN: prometheus::IntCounter = make_intcounter(
+        "client_add_failed_banned_email_domain",
+        "Failed to add a client because email address is from a banned domain",
+    );
+    static ref CLIENT_ADD_FAILED_EMAIL_DOMAIN_INVALID_SUFFIX: prometheus::IntCounter =
+        make_intcounter(
             "client_add_failed_email_domain_invalid_suffix",
             "Failed to add a client because email domain had an invalid suffix",
-        )
-        .unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
-    static ref CLIENT_ADD_FAILED_WEAK_PASSWORD: prometheus::IntCounter = {
-        let counter = prometheus::IntCounter::new(
-            "client_add_failed_weak_password",
-            "Failed to add a client because of a weak password",
-        )
-        .unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
-    static ref CLIENT_AUTHED: prometheus::IntCounter = {
-        let counter =
-            prometheus::IntCounter::new("client_authed", "Client authenticated successfully")
-                .unwrap();
-        register(Box::new(counter.clone())).unwrap();
-        counter
-    };
+        );
+    static ref CLIENT_ADD_FAILED_WEAK_PASSWORD: prometheus::IntCounter = make_intcounter(
+        "client_add_failed_weak_password",
+        "Failed to add a client because of a weak password",
+    );
+    static ref CLIENT_AUTHED: prometheus::IntCounter =
+        make_intcounter("client_authed", "Client authenticated successfully");
+    static ref CLIENT_UPDATED_PASSWORD: prometheus::IntCounter =
+        make_intcounter("client_updated_password", "Client password updated");
 }
 
 #[derive(Clone)]
@@ -293,15 +258,15 @@ impl Rolodex {
         let password_hash: PasswordHash = request.password_hash.parse()?;
         password_hash.check_validity(&*redis_conn)?;
 
-        let (region, region_subdivision, city) = if let Some(location) = &request.location {
-            (
-                Some(location.region.clone()),
-                Some(location.region_subdivision.clone()),
-                Some(location.city.clone()),
-            )
-        } else {
-            (None, None, None)
-        };
+        // let (region, region_subdivision, city) = if let Some(location) = &request.location {
+        //     (
+        //         Some(location.region.clone()),
+        //         Some(location.region_subdivision.clone()),
+        //         Some(location.city.clone()),
+        //     )
+        // } else {
+        //     (None, None, None)
+        // };
 
         let fields = (
             clients::dsl::full_name.eq(request.full_name.clone()),
@@ -311,9 +276,9 @@ impl Rolodex {
                 .mode(phonenumber::Mode::International)
                 .to_string()),
             clients::dsl::public_key.eq(request.public_key.clone()),
-            clients::dsl::region.eq(region),
-            clients::dsl::region_subdivision.eq(region_subdivision),
-            clients::dsl::city.eq(city),
+            // clients::dsl::region.eq(region),
+            // clients::dsl::region_subdivision.eq(region_subdivision),
+            // clients::dsl::city.eq(city),
         );
 
         let conn = self.db_writer.get().unwrap();
@@ -373,6 +338,38 @@ impl Rolodex {
         &self,
         request: &proto::UpdateClientPasswordRequest,
     ) -> Result<proto::UpdateClientPasswordResponse, RequestError> {
+        let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
+
+        use password_hash::PasswordHash;
+        let password_hash: PasswordHash = request.password_hash.parse()?;
+        let redis_conn = self.redis_reader.get()?;
+        password_hash.check_validity(&*redis_conn)?;
+
+        let conn = self.db_writer.get().unwrap();
+        conn.transaction::<_, Error, _>(|| {
+            diesel::update(clients::table.filter(clients::uuid.eq(request_uuid)))
+                .set(clients::password_hash.eq(crypt(
+                    request.password_hash.clone(),
+                    clients::dsl::password_hash,
+                )))
+                .execute(&conn)?;
+
+            // if let Some(location) = &request.location {
+            //     // Update location data, if present
+            //     diesel::update(clients::table.filter(clients::uuid.eq(request_uuid)))
+            //         .set((
+            //             clients::region.eq(Some(location.region.clone())),
+            //             clients::region_subdivision.eq(Some(location.region_subdivision.clone())),
+            //             clients::city.eq(Some(location.city.clone())),
+            //         ))
+            //         .execute(&conn)?;
+            // }
+
+            Ok(())
+        })?;
+
+        CLIENT_UPDATED_PASSWORD.inc();
+
         Ok(proto::UpdateClientPasswordResponse {
             result: proto::Result::Success as i32,
         })
@@ -597,6 +594,7 @@ mod tests {
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
                 location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -673,6 +671,7 @@ mod tests {
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
                 location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -701,6 +700,7 @@ mod tests {
                     .into(),
                 public_key: "herp derp".into(),
                 location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -739,6 +739,7 @@ mod tests {
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
                 location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -767,6 +768,7 @@ mod tests {
                     .into(),
                 public_key: "herp derp".into(),
                 location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -806,6 +808,7 @@ mod tests {
                 password_hash: pw_hash.into(),
                 public_key: "herp derp".into(),
                 location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
                     region_subdivision: "New York".into(),
                     city: "New York".into(),
@@ -834,6 +837,81 @@ mod tests {
                 client.client_id
             );
 
+            future::ok(())
+        }));
+    }
+
+    #[test]
+    fn test_add_client_update_password() {
+        let _lock = LOCK.lock().unwrap();
+
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
+
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
+
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
+
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(proto::PhoneNumber {
+                    country_code: "US".into(),
+                    national_number: "4013213952".into(),
+                }),
+                password_hash: pw_hash.into(),
+                public_key: "herp derp".into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+            assert_eq!(result.is_ok(), true);
+            assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+
+            let client = result.unwrap();
+
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
+                client_id: client.client_id.to_string(),
+                password_hash: pw_hash.into(),
+            });
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap().client_id, client.client_id);
+
+            let new_pw = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7LA";
+
+            // Update password
+            let update_result =
+                rolodex.handle_update_client_password(&proto::UpdateClientPasswordRequest {
+                    client_id: client.client_id.to_string(),
+                    password_hash: new_pw.into(),
+                    location: None,
+                });
+
+            if update_result.is_err() {
+                panic!("err: {:?}", update_result.err());
+            }
+            assert_eq!(update_result.is_ok(), true);
+            assert_eq!(update_result.unwrap().result, proto::Result::Success as i32);
+
+            // Login with new password
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
+                client_id: client.client_id.to_string(),
+                password_hash: new_pw.into(),
+            });
+            if auth_result.is_err() {
+                panic!("err: {:?}", auth_result.err());
+            }
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap().client_id, client.client_id);
             future::ok(())
         }));
     }

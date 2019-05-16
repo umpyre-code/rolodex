@@ -102,10 +102,12 @@ message PhoneNumber {
   string national_number = 2;
 }
 
+// A message representing IP-based geolocation for the API request
 message Location {
-  string region = 1;
-  string region_subdivision = 2;
-  string city = 3;
+  string ip_address = 1;
+  string region = 2;
+  string region_subdivision = 3;
+  string city = 4;
 }
 
 message HealthCheckRequest { string service = 1; }

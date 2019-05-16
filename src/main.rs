@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate diesel_derive_enum;
 extern crate data_encoding;
 extern crate env_logger;
 extern crate futures;
@@ -30,6 +32,7 @@ mod models;
 mod password_hash;
 mod schema;
 mod service;
+mod sql_types;
 
 use futures::{Future, Stream};
 use r2d2_redis::RedisConnectionManager;
