@@ -52,10 +52,14 @@ lazy_static! {
     );
     static ref CLIENT_AUTHED: prometheus::IntCounter =
         make_intcounter("client_authed", "Client authenticated successfully");
-    static ref CLIENT_UPDATED_PASSWORD: prometheus::IntCounter =
-        make_intcounter("client_updated_password", "Client password updated");
     static ref CLIENT_UPDATED: prometheus::IntCounter =
         make_intcounter("client_updated", "Client account data updated");
+    static ref CLIENT_UPDATED_PASSWORD: prometheus::IntCounter =
+        make_intcounter("client_updated_password", "Client password updated");
+    static ref CLIENT_UPDATED_EMAIL: prometheus::IntCounter =
+        make_intcounter("client_updated_email", "Client email address updated");
+    static ref CLIENT_UPDATED_PHONE_NUMBER: prometheus::IntCounter =
+        make_intcounter("client_updated_phone_number", "Client phone number updated");
 }
 
 #[derive(Clone)]
@@ -499,7 +503,8 @@ impl Rolodex {
             Ok(())
         })?;
 
-        CLIENT_UPDATED_PASSWORD.inc();
+        CLIENT_UPDATED_EMAIL.inc();
+
         Ok(proto::UpdateClientEmailResponse {
             result: proto::Result::Success as i32,
         })
@@ -532,6 +537,8 @@ impl Rolodex {
 
             Ok(())
         })?;
+
+        CLIENT_UPDATED_PHONE_NUMBER.inc();
 
         Ok(proto::UpdateClientPhoneNumberResponse {
             result: proto::Result::Success as i32,
