@@ -48,7 +48,7 @@ fn get_db_pool(
 
     let manager = ConnectionManager::<PgConnection>::new(format!(
         "postgres://{}:{}@{}:{}/{}",
-        database.clientname, database.password, database.host, database.port, database.name,
+        database.username, database.password, database.host, database.port, database.name,
     ));
 
     let db_pool = Pool::builder()
