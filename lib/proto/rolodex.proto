@@ -42,7 +42,10 @@ message UpdateClientRequest {
   Client client = 1;
   Location location = 2;
 }
-message UpdateClientResponse { Result result = 1; }
+message UpdateClientResponse {
+  Result result = 1;
+  Client client = 2;
+}
 
 message UpdateClientPasswordRequest {
   string client_id = 1;

@@ -184,6 +184,16 @@ impl From<models::Client> for proto::NewClientResponse {
     }
 }
 
+impl From<models::Client> for proto::Client {
+    fn from(client: models::Client) -> proto::Client {
+        proto::Client {
+            client_id: client.uuid.to_simple().to_string(),
+            full_name: client.full_name,
+            public_key: client.public_key,
+        }
+    }
+}
+
 sql_function! {
     fn crypt(value: Text, salt: Text) -> Text;
 }
@@ -386,7 +396,7 @@ impl Rolodex {
         let request_uuid = uuid::Uuid::parse_str(&client.client_id)?;
 
         let conn = self.db_writer.get().unwrap();
-        conn.transaction::<_, Error, _>(|| {
+        let updated_row = conn.transaction::<_, Error, _>(|| {
             let updated_row: models::Client = diesel::update(
                 schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
             )
@@ -403,13 +413,14 @@ impl Rolodex {
                 &conn,
             )?;
 
-            Ok(())
+            Ok(updated_row)
         })?;
 
         CLIENT_UPDATED.inc();
 
         Ok(proto::UpdateClientResponse {
             result: proto::Result::Success as i32,
+            client: Some(updated_row.into()),
         })
     }
 
