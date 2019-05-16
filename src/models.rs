@@ -1,7 +1,7 @@
 extern crate uuid;
 
-use crate::sql_types::*;
 use crate::schema::*;
+use crate::sql_types::*;
 use chrono::NaiveDateTime;
 
 /// This represents the private (internal) client model

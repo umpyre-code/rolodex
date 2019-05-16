@@ -1,6 +1,7 @@
 use crate::email;
-use crate::models::*;
-use crate::schema::*;
+use crate::models;
+use crate::schema;
+use crate::sql_types;
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::sql_types::{Integer, Text};
@@ -20,13 +21,13 @@ fn make_intcounter(name: &str, description: &str) -> prometheus::IntCounter {
 lazy_static! {
     static ref CLIENT_ADDED: prometheus::IntCounter =
         make_intcounter("client_added", "New client added");
-    static ref CLIENT_ADD_FAILED_INVALID_PHONE_NUMBER: prometheus::IntCounter = make_intcounter(
-        "client_add_failed_invalid_phone_number",
-        "Failed to add a client because of an invalid phone number",
+    static ref CLIENT_UPDATE_FAILED_INVALID_PHONE_NUMBER: prometheus::IntCounter = make_intcounter(
+        "client_update_failed_invalid_phone_number",
+        "Failed to add or update a client because of an invalid phone number",
     );
-    static ref CLIENT_ADD_FAILED_PHONE_NUMBER_OMITTED: prometheus::IntCounter = make_intcounter(
-        "client_add_failed_phone_number_omitted",
-        "Failed to add a client because phone number was not specified",
+    static ref CLIENT_UPDATE_FAILED_PHONE_NUMBER_OMITTED: prometheus::IntCounter = make_intcounter(
+        "client_update_failed_phone_number_omitted",
+        "Failed to add or update a client because phone number was not specified",
     );
     static ref CLIENT_ADD_FAILED_INVALID_EMAIL: prometheus::IntCounter = make_intcounter(
         "client_add_failed_invaled_email",
@@ -53,6 +54,8 @@ lazy_static! {
         make_intcounter("client_authed", "Client authenticated successfully");
     static ref CLIENT_UPDATED_PASSWORD: prometheus::IntCounter =
         make_intcounter("client_updated_password", "Client password updated");
+    static ref CLIENT_UPDATED: prometheus::IntCounter =
+        make_intcounter("client_updated", "Client account data updated");
 }
 
 #[derive(Clone)]
@@ -79,6 +82,8 @@ enum RequestError {
     InvalidClientId { err: String },
     #[fail(display = "resource could not be found")]
     NotFound,
+    #[fail(display = "Bad arguments specified for request")]
+    BadArguments,
 }
 
 impl From<diesel::result::Error> for RequestError {
@@ -147,8 +152,8 @@ impl From<uuid::parser::ParseError> for RequestError {
     }
 }
 
-impl From<Client> for rolodex_grpc::proto::GetClientResponse {
-    fn from(client: Client) -> rolodex_grpc::proto::GetClientResponse {
+impl From<models::Client> for rolodex_grpc::proto::GetClientResponse {
+    fn from(client: models::Client) -> rolodex_grpc::proto::GetClientResponse {
         rolodex_grpc::proto::GetClientResponse {
             client: Some(proto::Client {
                 client_id: client.uuid.to_simple().to_string(),
@@ -159,16 +164,16 @@ impl From<Client> for rolodex_grpc::proto::GetClientResponse {
     }
 }
 
-impl From<Client> for proto::AuthResponse {
-    fn from(client: Client) -> proto::AuthResponse {
+impl From<models::Client> for proto::AuthResponse {
+    fn from(client: models::Client) -> proto::AuthResponse {
         proto::AuthResponse {
             client_id: client.uuid.to_simple().to_string(),
         }
     }
 }
 
-impl From<Client> for proto::NewClientResponse {
-    fn from(client: Client) -> proto::NewClientResponse {
+impl From<models::Client> for proto::NewClientResponse {
+    fn from(client: models::Client) -> proto::NewClientResponse {
         proto::NewClientResponse {
             client_id: client.uuid.to_simple().to_string(),
         }
@@ -181,6 +186,64 @@ sql_function! {
 
 sql_function! {
     fn gen_salt(alg: Text, bits: Integer) -> Text;
+}
+
+fn insert_client_action(
+    client_id: i64,
+    action: sql_types::ClientAccountAction,
+    location: &Option<proto::Location>,
+    conn: &diesel::pg::PgConnection,
+) -> Result<(), Error> {
+    let (ip_address, region, region_subdivision, city) = if let Some(location) = location {
+        (
+            Some(location.ip_address.clone()),
+            Some(location.region.clone()),
+            Some(location.region_subdivision.clone()),
+            Some(location.city.clone()),
+        )
+    } else {
+        (None, None, None, None)
+    };
+
+    let client_action = models::NewClientAccountAction {
+        client_id,
+        action,
+        ip_address,
+        region,
+        region_subdivision,
+        city,
+    };
+
+    diesel::insert_into(schema::client_account_actions::table)
+        .values(&client_action)
+        .execute(conn)?;
+
+    Ok(())
+}
+
+fn validate_phone_number(
+    phone_number: &Option<proto::PhoneNumber>,
+) -> Result<String, RequestError> {
+    if let Some(phone_number) = phone_number {
+        let country = phone_number.country_code.parse().unwrap();
+        let number = phonenumber::parse(Some(country), &phone_number.national_number)?;
+        let phonenumber_valid = number.is_valid();
+        if !phonenumber_valid {
+            CLIENT_UPDATE_FAILED_INVALID_PHONE_NUMBER.inc();
+            return Err(RequestError::InvalidPhoneNumber {
+                err: number.to_string(),
+            });
+        }
+        Ok(number
+            .format()
+            .mode(phonenumber::Mode::International)
+            .to_string())
+    } else {
+        CLIENT_UPDATE_FAILED_PHONE_NUMBER_OMITTED.inc();
+        Err(RequestError::InvalidPhoneNumber {
+            err: "no phone number specified".to_string(),
+        })
+    }
 }
 
 impl Rolodex {
@@ -208,16 +271,23 @@ impl Rolodex {
 
         let conn = self.db_reader.get().unwrap();
 
-        let client: Client = clients::table
+        let client: models::Client = schema::clients::table
             .filter(
-                clients::dsl::password_hash
+                schema::clients::dsl::password_hash
                     .eq(crypt(
                         request.password_hash.clone(),
-                        clients::dsl::password_hash,
+                        schema::clients::dsl::password_hash,
                     ))
-                    .and(clients::dsl::uuid.eq(&request_uuid)),
+                    .and(schema::clients::dsl::uuid.eq(&request_uuid)),
             )
             .first(&conn)?;
+
+        insert_client_action(
+            client.id,
+            sql_types::ClientAccountAction::Authenticated,
+            &request.location,
+            &conn,
+        )?;
 
         CLIENT_AUTHED.inc();
         Ok(client.into())
@@ -230,23 +300,8 @@ impl Rolodex {
         request: &proto::NewClientRequest,
     ) -> Result<proto::NewClientResponse, RequestError> {
         use password_hash::PasswordHash;
-        let number = if let Some(phone_number) = &request.phone_number {
-            let country = phone_number.country_code.parse().unwrap();
-            let number = phonenumber::parse(Some(country), &phone_number.national_number)?;
-            let phonenumber_valid = number.is_valid();
-            if !phonenumber_valid {
-                CLIENT_ADD_FAILED_INVALID_PHONE_NUMBER.inc();
-                return Err(RequestError::InvalidPhoneNumber {
-                    err: number.to_string(),
-                });
-            }
-            number
-        } else {
-            CLIENT_ADD_FAILED_PHONE_NUMBER_OMITTED.inc();
-            return Err(RequestError::InvalidPhoneNumber {
-                err: "no phone number specified".to_string(),
-            });
-        };
+
+        let phone_number = validate_phone_number(&request.phone_number)?;
 
         let email: Email = request.email.to_lowercase().parse()?;
         let redis_conn = self.redis_reader.get()?;
@@ -258,44 +313,35 @@ impl Rolodex {
         let password_hash: PasswordHash = request.password_hash.parse()?;
         password_hash.check_validity(&*redis_conn)?;
 
-        // let (region, region_subdivision, city) = if let Some(location) = &request.location {
-        //     (
-        //         Some(location.region.clone()),
-        //         Some(location.region_subdivision.clone()),
-        //         Some(location.city.clone()),
-        //     )
-        // } else {
-        //     (None, None, None)
-        // };
-
         let fields = (
-            clients::dsl::full_name.eq(request.full_name.clone()),
-            clients::dsl::password_hash.eq(crypt(password_hash.digest, gen_salt("bf", 8))),
-            clients::dsl::phone_number.eq(number
-                .format()
-                .mode(phonenumber::Mode::International)
-                .to_string()),
-            clients::dsl::public_key.eq(request.public_key.clone()),
-            // clients::dsl::region.eq(region),
-            // clients::dsl::region_subdivision.eq(region_subdivision),
-            // clients::dsl::city.eq(city),
+            schema::clients::dsl::full_name.eq(request.full_name.clone()),
+            schema::clients::dsl::password_hash.eq(crypt(password_hash.digest, gen_salt("bf", 8))),
+            schema::clients::dsl::phone_number.eq(phone_number),
+            schema::clients::dsl::public_key.eq(request.public_key.clone()),
         );
 
         let conn = self.db_writer.get().unwrap();
         let client = conn.transaction::<_, Error, _>(|| {
-            let client: Client = diesel::insert_into(clients::table)
+            let client: models::Client = diesel::insert_into(schema::clients::table)
                 .values(&vec![fields])
                 .get_result(&conn)?;
 
-            let new_unique_email_address = NewUniqueEmailAddress {
+            let new_unique_email_address = models::NewUniqueEmailAddress {
                 client_id: client.id,
                 email_as_entered,
                 email_without_labels,
             };
 
-            diesel::insert_into(unique_email_addresses::table)
+            diesel::insert_into(schema::unique_email_addresses::table)
                 .values(&new_unique_email_address)
                 .execute(&conn)?;
+
+            insert_client_action(
+                client.id,
+                sql_types::ClientAccountAction::Created,
+                &request.location,
+                &conn,
+            )?;
 
             Ok(client)
         })?;
@@ -314,8 +360,8 @@ impl Rolodex {
 
         let conn = self.db_reader.get().unwrap();
 
-        let client: Client = clients::table
-            .filter(clients::dsl::uuid.eq(&request_uuid))
+        let client: models::Client = schema::clients::table
+            .filter(schema::clients::dsl::uuid.eq(&request_uuid))
             .first(&conn)?;
 
         Ok(client.into())
@@ -327,6 +373,37 @@ impl Rolodex {
         &self,
         request: &proto::UpdateClientRequest,
     ) -> Result<proto::UpdateClientResponse, RequestError> {
+        let client = if let Some(client) = &request.client {
+            client.clone()
+        } else {
+            return Err(RequestError::BadArguments);
+        };
+
+        let request_uuid = uuid::Uuid::parse_str(&client.client_id)?;
+
+        let conn = self.db_writer.get().unwrap();
+        conn.transaction::<_, Error, _>(|| {
+            let updated_row: models::Client = diesel::update(
+                schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
+            )
+            .set((
+                schema::clients::full_name.eq(client.full_name),
+                schema::clients::public_key.eq(client.public_key),
+            ))
+            .get_result(&conn)?;
+
+            insert_client_action(
+                updated_row.id,
+                sql_types::ClientAccountAction::Updated,
+                &request.location,
+                &conn,
+            )?;
+
+            Ok(())
+        })?;
+
+        CLIENT_UPDATED.inc();
+
         Ok(proto::UpdateClientResponse {
             result: proto::Result::Success as i32,
         })
@@ -347,23 +424,21 @@ impl Rolodex {
 
         let conn = self.db_writer.get().unwrap();
         conn.transaction::<_, Error, _>(|| {
-            diesel::update(clients::table.filter(clients::uuid.eq(request_uuid)))
-                .set(clients::password_hash.eq(crypt(
-                    request.password_hash.clone(),
-                    clients::dsl::password_hash,
-                )))
-                .execute(&conn)?;
+            let updated_row: models::Client = diesel::update(
+                schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
+            )
+            .set(schema::clients::password_hash.eq(crypt(
+                request.password_hash.clone(),
+                schema::clients::dsl::password_hash,
+            )))
+            .get_result(&conn)?;
 
-            // if let Some(location) = &request.location {
-            //     // Update location data, if present
-            //     diesel::update(clients::table.filter(clients::uuid.eq(request_uuid)))
-            //         .set((
-            //             clients::region.eq(Some(location.region.clone())),
-            //             clients::region_subdivision.eq(Some(location.region_subdivision.clone())),
-            //             clients::city.eq(Some(location.city.clone())),
-            //         ))
-            //         .execute(&conn)?;
-            // }
+            insert_client_action(
+                updated_row.id,
+                sql_types::ClientAccountAction::PasswordUpdated,
+                &request.location,
+                &conn,
+            )?;
 
             Ok(())
         })?;
@@ -381,6 +456,50 @@ impl Rolodex {
         &self,
         request: &proto::UpdateClientEmailRequest,
     ) -> Result<proto::UpdateClientEmailResponse, RequestError> {
+        let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
+
+        let email: Email = request.email.to_lowercase().parse()?;
+        let redis_conn = self.redis_reader.get()?;
+        email.check_validity(&*redis_conn)?;
+
+        let email_as_entered = email.email_as_entered.clone();
+        let email_without_labels = email.email_without_labels.clone();
+
+        let conn = self.db_writer.get().unwrap();
+        conn.transaction::<_, Error, _>(|| {
+            let client: models::Client = schema::clients::table
+                .filter(schema::clients::dsl::uuid.eq(&request_uuid))
+                .first(&conn)?;
+
+            // Delete the old email address first
+            diesel::delete(
+                schema::unique_email_addresses::table
+                    .filter(schema::unique_email_addresses::client_id.eq(client.id)),
+            )
+            .execute(&conn)?;
+
+            let new_unique_email_address = models::NewUniqueEmailAddress {
+                client_id: client.id,
+                email_as_entered,
+                email_without_labels,
+            };
+
+            // Insert new email address
+            diesel::insert_into(schema::unique_email_addresses::table)
+                .values(&new_unique_email_address)
+                .execute(&conn)?;
+
+            insert_client_action(
+                client.id,
+                sql_types::ClientAccountAction::EmailUpdated,
+                &request.location,
+                &conn,
+            )?;
+
+            Ok(())
+        })?;
+
+        CLIENT_UPDATED_PASSWORD.inc();
         Ok(proto::UpdateClientEmailResponse {
             result: proto::Result::Success as i32,
         })
@@ -392,6 +511,28 @@ impl Rolodex {
         &self,
         request: &proto::UpdateClientPhoneNumberRequest,
     ) -> Result<proto::UpdateClientPhoneNumberResponse, RequestError> {
+        let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
+
+        let phone_number = validate_phone_number(&request.phone_number)?;
+
+        let conn = self.db_writer.get().unwrap();
+        conn.transaction::<_, Error, _>(|| {
+            let updated_row: models::Client = diesel::update(
+                schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
+            )
+            .set(schema::clients::phone_number.eq(phone_number))
+            .get_result(&conn)?;
+
+            insert_client_action(
+                updated_row.id,
+                sql_types::ClientAccountAction::PhoneNumberUpdated,
+                &request.location,
+                &conn,
+            )?;
+
+            Ok(())
+        })?;
+
         Ok(proto::UpdateClientPhoneNumberResponse {
             result: proto::Result::Success as i32,
         })
@@ -544,13 +685,13 @@ mod tests {
         macro_rules! empty_tables {
                 ( $( $x:ident ),* ) => {
                 $(
-                    diesel::delete($x::table).execute(&conn).unwrap();
-                    assert_eq!(Ok(0), $x::table.select(count($x::id)).first(&conn));
+                    diesel::delete(schema::$x::table).execute(&conn).unwrap();
+                    assert_eq!(Ok(0), schema::$x::table.select(count(schema::$x::id)).first(&conn));
                 )*
             };
         }
 
-        empty_tables![unique_email_addresses, clients];
+        empty_tables![client_account_actions, unique_email_addresses, clients];
     }
 
     fn email_in_table(
@@ -559,9 +700,23 @@ mod tests {
     ) -> bool {
         let conn = db_pool.get().unwrap();
 
-        let count: i64 = unique_email_addresses::table
-            .select(count(unique_email_addresses::id))
-            .filter(unique_email_addresses::email_as_entered.eq(email))
+        let count: i64 = schema::unique_email_addresses::table
+            .select(count(schema::unique_email_addresses::id))
+            .filter(schema::unique_email_addresses::email_as_entered.eq(email))
+            .first(&conn)
+            .unwrap();
+        count > 0
+    }
+
+    fn phone_number_in_table(
+        db_pool: &diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
+        phone_number: &str,
+    ) -> bool {
+        let conn = db_pool.get().unwrap();
+
+        let count: i64 = schema::clients::table
+            .select(count(schema::clients::id))
+            .filter(schema::clients::phone_number.eq(phone_number))
             .first(&conn)
             .unwrap();
         count > 0
@@ -608,6 +763,12 @@ mod tests {
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
@@ -637,6 +798,12 @@ mod tests {
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client_id.to_string(),
                 password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(auth_result.is_err(), true);
 
@@ -685,6 +852,12 @@ mod tests {
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
@@ -753,6 +926,12 @@ mod tests {
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
@@ -822,6 +1001,12 @@ mod tests {
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
@@ -837,6 +1022,110 @@ mod tests {
                 client.client_id
             );
 
+            future::ok(())
+        }));
+    }
+
+    #[test]
+    fn test_add_client_update_client() {
+        let _lock = LOCK.lock().unwrap();
+
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
+
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
+
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
+
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(proto::PhoneNumber {
+                    country_code: "US".into(),
+                    national_number: "4013213952".into(),
+                }),
+                password_hash: pw_hash.into(),
+                public_key: "herp derp".into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+            assert_eq!(result.is_ok(), true);
+            assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+
+            let client = result.unwrap();
+
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
+                client_id: client.client_id.to_string(),
+                password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap().client_id, client.client_id);
+
+            let new_pw = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7LA";
+
+            // Update client model
+            let update_result = rolodex.handle_update_client(&proto::UpdateClientRequest {
+                client: Some(proto::Client {
+                    client_id: client.client_id.to_string(),
+                    full_name: "bob nob".into(),
+                    public_key: "lob job".into(),
+                }),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+
+            if update_result.is_err() {
+                panic!("err: {:?}", update_result.err());
+            }
+            assert_eq!(update_result.is_ok(), true);
+            assert_eq!(update_result.unwrap().result, proto::Result::Success as i32);
+
+            let updated_client = rolodex
+                .handle_get_client(&proto::GetClientRequest {
+                    calling_client_id: client.client_id.to_string(),
+                    client_id: client.client_id.to_string(),
+                })
+                .unwrap();
+            let updated_client = updated_client.client.unwrap().clone();
+            assert_eq!(updated_client.full_name, "bob nob");
+            assert_eq!(updated_client.public_key, "lob job");
+
+            // Login with new password
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
+                client_id: client.client_id.to_string(),
+                password_hash: new_pw.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+            if auth_result.is_err() {
+                panic!("err: {:?}", auth_result.err());
+            }
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap().client_id, client.client_id);
             future::ok(())
         }));
     }
@@ -882,6 +1171,12 @@ mod tests {
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
@@ -906,12 +1201,172 @@ mod tests {
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
                 client_id: client.client_id.to_string(),
                 password_hash: new_pw.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
             });
             if auth_result.is_err() {
                 panic!("err: {:?}", auth_result.err());
             }
             assert_eq!(auth_result.is_ok(), true);
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
+            future::ok(())
+        }));
+    }
+
+    #[test]
+    fn test_add_client_update_email() {
+        let _lock = LOCK.lock().unwrap();
+
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
+
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
+
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
+
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(proto::PhoneNumber {
+                    country_code: "US".into(),
+                    national_number: "4013213952".into(),
+                }),
+                password_hash: pw_hash.into(),
+                public_key: "herp derp".into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+            assert_eq!(result.is_ok(), true);
+            assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+
+            let client = result.unwrap();
+
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
+                client_id: client.client_id.to_string(),
+                password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap().client_id, client.client_id);
+
+            // Update Email
+            let update_result =
+                rolodex.handle_update_client_email(&proto::UpdateClientEmailRequest {
+                    client_id: client.client_id.to_string(),
+                    email: "hello@yahoo.com".into(),
+                    location: Some(proto::Location {
+                        ip_address: "127.0.0.1".into(),
+                        region: "United States".into(),
+                        region_subdivision: "New York".into(),
+                        city: "New York".into(),
+                    }),
+                });
+
+            if update_result.is_err() {
+                panic!("err: {:?}", update_result.err());
+            }
+            assert_eq!(update_result.is_ok(), true);
+            assert_eq!(update_result.unwrap().result, proto::Result::Success as i32);
+
+            assert_eq!(email_in_table(&db_pool, "hello@yahoo.com"), true);
+
+            future::ok(())
+        }));
+    }
+
+    #[test]
+    fn test_add_client_update_phone_number() {
+        let _lock = LOCK.lock().unwrap();
+
+        tokio::run(future::lazy(|| {
+            let (db_pool, redis_pool) = get_pools();
+            empty_tables(&db_pool);
+
+            let rolodex = Rolodex::new(
+                db_pool.clone(),
+                db_pool.clone(),
+                redis_pool.clone(),
+                redis_pool.clone(),
+            );
+
+            let pw_hash = "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA";
+
+            let result = rolodex.handle_add_client(&proto::NewClientRequest {
+                full_name: "Bob Marley".into(),
+                email: "bob@aol.com".into(),
+                phone_number: Some(proto::PhoneNumber {
+                    country_code: "US".into(),
+                    national_number: "4013213952".into(),
+                }),
+                password_hash: pw_hash.into(),
+                public_key: "herp derp".into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+            assert_eq!(result.is_ok(), true);
+            assert_eq!(email_in_table(&db_pool, "bob@aol.com"), true);
+
+            let client = result.unwrap();
+
+            let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
+                client_id: client.client_id.to_string(),
+                password_hash: pw_hash.into(),
+                location: Some(proto::Location {
+                    ip_address: "127.0.0.1".into(),
+                    region: "United States".into(),
+                    region_subdivision: "New York".into(),
+                    city: "New York".into(),
+                }),
+            });
+            assert_eq!(auth_result.is_ok(), true);
+            assert_eq!(auth_result.unwrap().client_id, client.client_id);
+
+            // Update phone number
+            let update_result =
+                rolodex.handle_update_client_phone_number(&proto::UpdateClientPhoneNumberRequest {
+                    client_id: client.client_id.to_string(),
+                    phone_number: Some(proto::PhoneNumber {
+                        country_code: "US".into(),
+                        national_number: "5105825858".into(),
+                    }),
+                    location: Some(proto::Location {
+                        ip_address: "127.0.0.1".into(),
+                        region: "United States".into(),
+                        region_subdivision: "New York".into(),
+                        city: "New York".into(),
+                    }),
+                });
+
+            if update_result.is_err() {
+                panic!("err: {:?}", update_result.err());
+            }
+            assert_eq!(update_result.is_ok(), true);
+            assert_eq!(update_result.unwrap().result, proto::Result::Success as i32);
+            assert_eq!(phone_number_in_table(&db_pool, "+1 510-582-5858"), true);
+
             future::ok(())
         }));
     }
