@@ -110,11 +110,23 @@ impl Email {
             .sismember("banned_email_domains", &self.domain)
             .sismember("public_suffix_list", &self.domain)
             .query(redis_conn)?;
+        if is_banned_email_domain {
+            return Err(EmailError::BannedDomain {
+                email: self.email_as_entered.clone(),
+            });
+        } else if in_public_suffix_list {
+            return Err(EmailError::InvalidSuffix {
+                email: self.email_as_entered.clone(),
+            });
+        }
 
         // Check domain is resolvable
         let mut exec = tokio::executor::DefaultExecutor::current();
 
-        let stream = UdpClientStream::new(([8, 8, 8, 8], 53).into());
+        let stream = UdpClientStream::with_timeout(
+            ([8, 8, 8, 8], 53).into(),
+            std::time::Duration::from_secs(1),
+        );
         let (bg, mut client) = ClientFuture::connect(stream);
         exec.spawn(Box::new(bg)).unwrap();
 
@@ -126,24 +138,17 @@ impl Email {
         let query = client.query(name, DNSClass::IN, RecordType::MX);
 
         let (tx, rx) = futures::sync::oneshot::channel();
-        exec.spawn(Box::new(
-            query.then(move |r| tx.send(r).map_err(|_| unreachable!())),
-        ))
+        exec.spawn(Box::new(query.then(move |r| {
+            tx.send(r)
+                .map_err(|err| error!("DNS query error: {:?}", err))
+        })))
         .unwrap();
         let response = rx.wait().unwrap().unwrap();
 
         let answers = response.answers();
         let dns_valid = !answers.is_empty();
 
-        if is_banned_email_domain {
-            Err(EmailError::BannedDomain {
-                email: self.email_as_entered.clone(),
-            })
-        } else if in_public_suffix_list {
-            Err(EmailError::InvalidSuffix {
-                email: self.email_as_entered.clone(),
-            })
-        } else if !dns_valid {
+        if !dns_valid {
             Err(EmailError::InvalidDomain {
                 email: self.email_as_entered.clone(),
             })

@@ -93,11 +93,12 @@ pub fn main() {
         get_redis_pool(&config::CONFIG.redis.writer),
     ));
 
-    // Arc<Mutex<>> only needed for TLS version
-    // let server = Arc::new(Mutex::new(Server::new(new_service)));
     let mut server = Server::new(new_service);
 
-    let http = Http::new().http2_only(true).clone();
+    let http = Http::new()
+        .http2_only(true)
+        .http2_max_concurrent_streams(Some(1000))
+        .clone();
 
     let addr = config::CONFIG.service.bind_to_address.parse().unwrap();
     let bind = TcpListener::bind(&addr).expect("bind");
@@ -105,9 +106,6 @@ pub fn main() {
     let serve = bind
         .incoming()
         .for_each(move |sock| {
-            if let Err(e) = sock.set_nodelay(true) {
-                return Err(e);
-            }
             let addr = sock.peer_addr().ok();
             info!("New connection from addr={:?}", addr);
 
