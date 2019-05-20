@@ -97,7 +97,6 @@ pub fn main() {
 
     let http = Http::new()
         .http2_only(true)
-        .http2_max_concurrent_streams(Some(1000))
         .clone();
 
     let addr = config::CONFIG.service.bind_to_address.parse().unwrap();
