@@ -1,25 +1,11 @@
 version: 1
 update_configs:
   - package_manager: "rust:cargo"
-    directory: "/lib"
-    update_schedule: "live"
-
-    default_reviewers:
-      - "brndnmtthws"
-
-    automerged_updates:
-      - match:
-          dependency_type: "development"
-          update_type: "all"
-      - match:
-          dependency_type: "production"
-          update_type: "security:patch"
-  - package_manager: "rust:cargo"
     directory: "/"
     update_schedule: "live"
 
     default_reviewers:
-      - "brndnmtthws"
+        - "brndnmtthws"
 
     automerged_updates:
       - match:
@@ -28,12 +14,13 @@ update_configs:
       - match:
           dependency_type: "production"
           update_type: "security:patch"
+
   - package_manager: "rust:cargo"
-    directory: "/tools/loader"
+    directory: "/lib"
     update_schedule: "live"
 
     default_reviewers:
-      - "brndnmtthws"
+        - "brndnmtthws"
 
     automerged_updates:
       - match:
@@ -42,3 +29,4 @@ update_configs:
       - match:
           dependency_type: "production"
           update_type: "security:patch"
+
