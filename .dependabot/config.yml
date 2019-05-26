@@ -7,26 +7,9 @@ update_configs:
     default_reviewers:
         - "brndnmtthws"
 
-    automerged_updates:
-      - match:
-          dependency_type: "development"
-          update_type: "all"
-      - match:
-          dependency_type: "production"
-          update_type: "security:patch"
-
   - package_manager: "rust:cargo"
     directory: "/lib"
     update_schedule: "live"
 
     default_reviewers:
         - "brndnmtthws"
-
-    automerged_updates:
-      - match:
-          dependency_type: "development"
-          update_type: "all"
-      - match:
-          dependency_type: "production"
-          update_type: "security:patch"
-
