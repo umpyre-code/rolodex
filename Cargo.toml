@@ -1,11 +1,7 @@
-cargo-features = ["default-run"]
-
 [package]
 name = "rolodex"
 version = "0.1.0"
 authors = ["Brenden Matthews <brenden@brndn.io>"]
-
-default-run = "rolodex"
 
 [dependencies]
 chrono = { version = "0.4"  }

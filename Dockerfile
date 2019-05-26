@@ -1,4 +1,4 @@
-FROM rustlang/rust:nightly
+FROM rust:latest
 
 ARG SSH_KEY
 ARG SCCACHE_KEY
