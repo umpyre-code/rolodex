@@ -13,3 +13,10 @@ update_configs:
 
     default_reviewers:
         - "brndnmtthws"
+
+  - package_manager: "rust:cargo"
+    directory: "/tools/loader"
+    update_schedule: "live"
+
+    default_reviewers:
+        - "brndnmtthws"
