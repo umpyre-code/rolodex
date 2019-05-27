@@ -296,6 +296,8 @@ impl Rolodex {
             )
             .first(&conn)?;
 
+        let conn = self.db_writer.get().unwrap();
+
         insert_client_action(
             client.id,
             sql_types::ClientAccountAction::Authenticated,
