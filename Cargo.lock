@@ -1135,7 +1135,7 @@ dependencies = [
  "tower-request-modifier 0.1.0 (git+https://github.com/tower-rs/tower-http)",
  "tower-service 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tower-util 0.1.0 (git+https://github.com/tower-rs/tower)",
- "trust-dns 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trust-dns 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "yansi 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1683,7 +1683,7 @@ dependencies = [
 
 [[package]]
 name = "trust-dns"
-version = "0.16.0"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2140,7 +2140,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum tower-service 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2cc0c98637d23732f8de6dfd16494c9f1559c3b9e20b4a46462c8f9b9e827bfa"
 "checksum tower-util 0.1.0 (git+https://github.com/tower-rs/tower)" = "<none>"
 "checksum tower-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "4792342fac093db5d2558655055a89a04ca909663467a4310c7739d9f8b64698"
-"checksum trust-dns 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d67974cadfe5c2a4854f3678160a31134ad4ff2439489d82404ebeb0e7a8c1a7"
+"checksum trust-dns 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)" = "462fc8356633e344a3ba4db3ef2d293dbb6eb7f3abc74f0f7986c3bbb049c8bb"
 "checksum trust-dns-https 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "e145e43a53e61430119176667c80e91180d187f9ec34082114983c3ddbe26a70"
 "checksum trust-dns-proto 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cc2f00e905d494cbca8a9e348d6e68c89847a370145244daf70bb2beb8dbc87f"
 "checksum trust-dns-rustls 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "5f4f5301357add99b561b8ab1a9817244264fab8060602b86e0a0b67cc80ca59"
