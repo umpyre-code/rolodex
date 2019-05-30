@@ -1595,7 +1595,7 @@ dependencies = [
 [[package]]
 name = "tower-http"
 version = "0.1.0"
-source = "git+https://github.com/tower-rs/tower-http#044e0ed5ae8b2e9946233b7cc8fc24471b2d126a"
+source = "git+https://github.com/tower-rs/tower-http#8c450c637430c4d589a07c46ba5ea2ce4b435aeb"
 dependencies = [
  "http-body 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tower-http-util 0.1.0 (git+https://github.com/tower-rs/tower-http)",
@@ -1604,7 +1604,7 @@ dependencies = [
 [[package]]
 name = "tower-http-util"
 version = "0.1.0"
-source = "git+https://github.com/tower-rs/tower-http#3d10200531aeb42ca3b6254ea5327aaaa56af4f3"
+source = "git+https://github.com/tower-rs/tower-http#8c450c637430c4d589a07c46ba5ea2ce4b435aeb"
 dependencies = [
  "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1646,7 +1646,7 @@ dependencies = [
 [[package]]
 name = "tower-request-modifier"
 version = "0.1.0"
-source = "git+https://github.com/tower-rs/tower-http#044e0ed5ae8b2e9946233b7cc8fc24471b2d126a"
+source = "git+https://github.com/tower-rs/tower-http#8c450c637430c4d589a07c46ba5ea2ce4b435aeb"
 dependencies = [
  "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
