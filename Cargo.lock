@@ -1664,7 +1664,7 @@ dependencies = [
 [[package]]
 name = "tower-util"
 version = "0.1.0"
-source = "git+https://github.com/tower-rs/tower#a496fbf72c335052de772d1c8c65033f1bc733de"
+source = "git+https://github.com/tower-rs/tower#82e7b8a27b7e10aac69533e382e42f89642c230e"
 dependencies = [
  "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "tower-layer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
