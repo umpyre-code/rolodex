@@ -1616,9 +1616,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "tower-http-util"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "http 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "http-body 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "http-connection 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-buf 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-io 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tower-service 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "tower-hyper"
 version = "0.1.0"
-source = "git+https://github.com/tower-rs/tower-hyper#3e4f37ea56402603511493371b33c25a447ad958"
+source = "git+https://github.com/tower-rs/tower-hyper#9890bdc8bcf2990aca3ac3a2438b7a33aecd50f6"
 dependencies = [
  "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1629,7 +1643,7 @@ dependencies = [
  "tokio-buf 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-executor 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "tower-http-util 0.1.0 (git+https://github.com/tower-rs/tower-http)",
+ "tower-http-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tower-service 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tower-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2134,6 +2148,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum tower-grpc-build 0.1.0 (git+https://github.com/tower-rs/tower-grpc)" = "<none>"
 "checksum tower-http 0.1.0 (git+https://github.com/tower-rs/tower-http)" = "<none>"
 "checksum tower-http-util 0.1.0 (git+https://github.com/tower-rs/tower-http)" = "<none>"
+"checksum tower-http-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "442ba79e23bda499cdaa5ee52b3776bf08cb84a1d5ca6d3d82bfd4f12c1eefc3"
 "checksum tower-hyper 0.1.0 (git+https://github.com/tower-rs/tower-hyper)" = "<none>"
 "checksum tower-layer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0ddf07e10c07dcc8f41da6de036dc66def1a85b70eb8a385159e3908bb258328"
 "checksum tower-request-modifier 0.1.0 (git+https://github.com/tower-rs/tower-http)" = "<none>"
