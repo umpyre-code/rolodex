@@ -69,17 +69,20 @@ impl FromStr for Email {
         if let Some(caps) = EMAIL_RE.captures(email) {
             let inbox = &caps["inbox"];
             let domain = &caps["domain"];
+            // Strip any values after the first `+`
             let (client, label) = if let Some(label_idx) = inbox.find('+') {
                 (&inbox[0..label_idx], &inbox[(label_idx + 1)..])
             } else {
                 (inbox, "")
             };
+            // Remove all `.` occurrences
+            let client = client.replace(".", "");
 
             Ok(Email {
                 email_as_entered: email.into(),
                 email_without_labels: format!("{}@{}", client, domain),
                 inbox: inbox.into(),
-                client: client.into(),
+                client: client,
                 label: label.into(),
                 domain: domain.into(),
             })
@@ -196,6 +199,19 @@ mod tests {
 
         assert_eq!(email.domain, "brndn.io");
         assert_eq!(email.inbox, "brenden+hi");
+        assert_eq!(email.client, "brenden");
+        assert_eq!(email.label, "hi");
+        assert_eq!(email.email_as_entered, addr);
+        assert_eq!(email.email_without_labels, "brenden@brndn.io");
+    }
+
+    #[test]
+    fn test_into_with_dots() {
+        let addr = "b.r.e.n.d.e.n+hi@brndn.io";
+        let email: Email = addr.parse().unwrap();
+
+        assert_eq!(email.domain, "brndn.io");
+        assert_eq!(email.inbox, "b.r.e.n.d.e.n+hi");
         assert_eq!(email.client, "brenden");
         assert_eq!(email.label, "hi");
         assert_eq!(email.email_as_entered, addr);

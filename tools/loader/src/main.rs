@@ -120,8 +120,12 @@ fn update_banned_domains_list(
     let banned_domains_url = Url::parse("https://raw.githubusercontent.com/martenson/disposable-email-domains/master/disposable_email_blocklist.conf")?;
     info!("Fetching banned domains list from {}", banned_domains_url);
 
-    let banned_domains_list =
+    let mut banned_domains_list =
         parse_banned_domains_list(reqwest_client.get(banned_domains_url).send()?.text()?);
+
+    // Disallow Apple's email forwarding service
+    banned_domains_list.push("privaterelay.appleid.com".to_string());
+
     info!("Read {} domains", banned_domains_list.len());
 
     let member_count =
