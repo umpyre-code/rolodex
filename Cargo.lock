@@ -1612,7 +1612,7 @@ dependencies = [
 [[package]]
 name = "tower-hyper"
 version = "0.1.0"
-source = "git+https://github.com/tower-rs/tower-hyper#6dccdb184e88c236212d4896f8d18fe17de8eca3"
+source = "git+https://github.com/tower-rs/tower-hyper#4d2219df6fe0e40d203e798ae9c2222a1c38fbf1"
 dependencies = [
  "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
