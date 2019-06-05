@@ -25,10 +25,10 @@ serde = "1.0"
 serde_derive = "1.0"
 tokio = "0.1"
 toml = "0.5"
-tower-hyper = { git = "https://github.com/tower-rs/tower-hyper" }
+tower-hyper = "0.1"
 tower-request-modifier = { git = "https://github.com/tower-rs/tower-http" }
 tower-service = "0.2"
-tower-util = { git = "https://github.com/tower-rs/tower" }
+tower-util = "0.1"
 trust-dns = { version = "0.16", default-features = false, features = ["dns-over-https-rustls", "dns-over-rustls", "dnssec-ring"] }
 url = "1"
 uuid = "0.7"
