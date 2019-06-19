@@ -479,7 +479,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "instrumented"
 version = "0.1.0"
-source = "git+ssh://git@github.com/umpyre-code/instrumented.git#b56a5ca3e55d749b7d86715c9d1e474765838361"
+source = "git+ssh://git@github.com/umpyre-code/instrumented.git#bde1d417089d9db33b1c1421704cae9e6fd513fc"
 dependencies = [
  "hyper 0.12.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "instrumented-codegen 0.1.0 (git+ssh://git@github.com/umpyre-code/instrumented.git)",
@@ -492,7 +492,7 @@ dependencies = [
 [[package]]
 name = "instrumented-codegen"
 version = "0.1.0"
-source = "git+ssh://git@github.com/umpyre-code/instrumented.git#b56a5ca3e55d749b7d86715c9d1e474765838361"
+source = "git+ssh://git@github.com/umpyre-code/instrumented.git#bde1d417089d9db33b1c1421704cae9e6fd513fc"
 dependencies = [
  "darling 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -835,7 +835,7 @@ dependencies = [
 [[package]]
 name = "prometheus"
 version = "0.6.1"
-source = "git+https://github.com/pingcap/rust-prometheus.git#356220985d3c0f87b545b3f9f8997833e1e9ada1"
+source = "git+https://github.com/pingcap/rust-prometheus.git#05e15b526f730b7ee650b9b6e846cadc0ad99ed6"
 dependencies = [
  "cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
