@@ -26,7 +26,8 @@ table! {
         full_name -> Text,
         password_hash -> Text,
         phone_number -> Text,
-        public_key -> Text,
+        box_public_key -> Text,
+        sign_public_key -> Text,
     }
 }
 

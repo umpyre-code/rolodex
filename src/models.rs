@@ -14,7 +14,8 @@ pub struct Client {
     pub full_name: String,
     pub email: String,
     pub phone_number: String,
-    pub public_key: String,
+    pub box_public_key: String,
+    pub sign_public_key: String,
 }
 
 #[derive(Queryable, Insertable)]
@@ -22,7 +23,8 @@ pub struct Client {
 pub struct NewClient {
     pub full_name: String,
     pub phone_number: String,
-    pub public_key: String,
+    pub box_public_key: String,
+    pub sign_public_key: String,
 }
 
 #[derive(Queryable, Associations, Identifiable)]
