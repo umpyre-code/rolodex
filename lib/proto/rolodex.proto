@@ -73,7 +73,7 @@ message Client {
   string client_id = 1;
   string full_name = 2;
   string box_public_key = 3;
-  string sign_public_key = 4;
+  string signing_public_key = 4;
 }
 
 // For creating new client accounts only
@@ -83,7 +83,7 @@ message NewClientRequest {
   string email = 3;
   PhoneNumber phone_number = 4;
   string box_public_key = 5;
-  string sign_public_key = 6;
+  string signing_public_key = 6;
   Location location = 7;
 }
 message NewClientResponse { string client_id = 1; }
