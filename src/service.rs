@@ -163,7 +163,7 @@ impl From<models::Client> for rolodex_grpc::proto::GetClientResponse {
                 client_id: client.uuid.to_simple().to_string(),
                 full_name: client.full_name,
                 box_public_key: client.box_public_key,
-                sign_public_key: client.sign_public_key,
+                signing_public_key: client.signing_public_key,
             }),
         }
     }
@@ -191,7 +191,7 @@ impl From<models::Client> for proto::Client {
             client_id: client.uuid.to_simple().to_string(),
             full_name: client.full_name,
             box_public_key: client.box_public_key,
-            sign_public_key: client.sign_public_key,
+            signing_public_key: client.signing_public_key,
         }
     }
 }
@@ -336,7 +336,7 @@ impl Rolodex {
             schema::clients::dsl::password_hash.eq(crypt(password_hash.digest, gen_salt("bf", 8))),
             schema::clients::dsl::phone_number.eq(phone_number),
             schema::clients::dsl::box_public_key.eq(request.box_public_key.clone()),
-            schema::clients::dsl::sign_public_key.eq(request.sign_public_key.clone()),
+            schema::clients::dsl::signing_public_key.eq(request.signing_public_key.clone()),
         );
 
         let conn = self.db_writer.get().unwrap();
@@ -408,7 +408,7 @@ impl Rolodex {
             .set((
                 schema::clients::full_name.eq(client.full_name),
                 schema::clients::box_public_key.eq(client.box_public_key),
-                schema::clients::sign_public_key.eq(client.sign_public_key),
+                schema::clients::signing_public_key.eq(client.signing_public_key),
             ))
             .get_result(&conn)?;
 
@@ -772,7 +772,7 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -862,7 +862,7 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -898,7 +898,7 @@ mod tests {
                 password_hash: "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
                     .into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -938,7 +938,7 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -974,7 +974,7 @@ mod tests {
                 password_hash: "HhG3RQhBk/2FWMwqQ9OadQv+WbzoB3eho99MWephbHOgL2S+zT0mN9GHepVOTQy8YCUn3YfBtHmp6v5AKIL7MA"
                     .into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -1015,7 +1015,7 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -1082,7 +1082,7 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -1116,7 +1116,7 @@ mod tests {
                     client_id: client.client_id.to_string(),
                     full_name: "bob nob".into(),
                     box_public_key: "herp derp".into(),
-                    sign_public_key: "herp derp".into(),
+                    signing_public_key: "herp derp".into(),
                 }),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
@@ -1141,7 +1141,7 @@ mod tests {
             let updated_client = updated_client.client.unwrap().clone();
             assert_eq!(updated_client.full_name, "bob nob");
             assert_eq!(updated_client.box_public_key, "herp derp");
-            assert_eq!(updated_client.sign_public_key, "herp derp");
+            assert_eq!(updated_client.signing_public_key, "herp derp");
 
             // Login with new password
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {
@@ -1189,7 +1189,7 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -1277,7 +1277,7 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
@@ -1354,7 +1354,7 @@ mod tests {
                 }),
                 password_hash: pw_hash.into(),
                 box_public_key: "herp derp".into(),
-                sign_public_key: "herp derp".into(),
+                signing_public_key: "herp derp".into(),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
                     region: "United States".into(),
