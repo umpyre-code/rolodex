@@ -30,6 +30,7 @@ mod config;
 mod email;
 mod models;
 mod password_hash;
+mod sanitizers;
 mod schema;
 mod service;
 mod sql_types;

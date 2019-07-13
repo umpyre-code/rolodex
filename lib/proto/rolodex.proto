@@ -28,6 +28,10 @@ service Rolodex {
   rpc UpdateClientPhoneNumber(UpdateClientPhoneNumberRequest)
       returns (UpdateClientPhoneNumberResponse);
 
+  // Check if a particular handle is available
+  rpc IsHandleAvailable(IsHandleAvailableRequest)
+      returns (IsHandleAvailableResponse);
+
   // Health check endpoint
   rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
 }
@@ -74,6 +78,8 @@ message Client {
   string full_name = 2;
   string box_public_key = 3;
   string signing_public_key = 4;
+  string handle = 5;
+  string profile = 6;
 }
 
 // For creating new client accounts only
@@ -114,6 +120,16 @@ message Location {
   string region = 2;
   string region_subdivision = 3;
   string city = 4;
+}
+
+message IsHandleAvailableRequest { string handle = 1; }
+
+message IsHandleAvailableResponse {
+  enum Availability {
+    NOT_AVAILABLE = 0;
+    IS_AVAILABLE = 1;
+  }
+  Availability available = 1;
 }
 
 message HealthCheckRequest { string service = 1; }

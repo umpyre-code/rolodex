@@ -16,6 +16,8 @@ pub struct Client {
     pub phone_number: String,
     pub box_public_key: String,
     pub signing_public_key: String,
+    pub profile: Option<String>,
+    pub handle: Option<String>,
 }
 
 #[derive(Queryable, Insertable)]
@@ -24,6 +26,16 @@ pub struct NewClient {
     pub full_name: String,
     pub phone_number: String,
     pub box_public_key: String,
+    pub signing_public_key: String,
+}
+
+#[derive(AsChangeset)]
+#[table_name = "clients"]
+pub struct UpdateClient {
+    pub box_public_key: String,
+    pub full_name: String,
+    pub handle: Option<String>,
+    pub profile: Option<String>,
     pub signing_public_key: String,
 }
 

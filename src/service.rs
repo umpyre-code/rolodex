@@ -1,7 +1,9 @@
 use crate::email;
 use crate::models;
+use crate::sanitizers;
 use crate::schema;
 use crate::sql_types;
+
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::sql_types::{Integer, Text};
@@ -160,9 +162,11 @@ impl From<models::Client> for rolodex_grpc::proto::GetClientResponse {
     fn from(client: models::Client) -> rolodex_grpc::proto::GetClientResponse {
         rolodex_grpc::proto::GetClientResponse {
             client: Some(proto::Client {
+                box_public_key: client.box_public_key,
                 client_id: client.uuid.to_simple().to_string(),
                 full_name: client.full_name,
-                box_public_key: client.box_public_key,
+                handle: client.handle.unwrap_or_else(|| String::from("")),
+                profile: client.profile.unwrap_or_else(|| String::from("")),
                 signing_public_key: client.signing_public_key,
             }),
         }
@@ -188,9 +192,11 @@ impl From<models::Client> for proto::NewClientResponse {
 impl From<models::Client> for proto::Client {
     fn from(client: models::Client) -> proto::Client {
         proto::Client {
+            box_public_key: client.box_public_key,
             client_id: client.uuid.to_simple().to_string(),
             full_name: client.full_name,
-            box_public_key: client.box_public_key,
+            handle: client.handle.unwrap_or_else(|| String::from("")),
+            profile: client.profile.unwrap_or_else(|| String::from("")),
             signing_public_key: client.signing_public_key,
         }
     }
@@ -331,12 +337,18 @@ impl Rolodex {
         let password_hash: PasswordHash = request.password_hash.parse()?;
         password_hash.check_validity(&*redis_conn)?;
 
+        let full_name = sanitizers::full_name(&request.full_name);
+
+        let box_public_key = sanitizers::public_key(&request.box_public_key);
+
+        let signing_public_key = sanitizers::public_key(&request.signing_public_key);
+
         let fields = (
-            schema::clients::dsl::full_name.eq(request.full_name.clone()),
+            schema::clients::dsl::full_name.eq(full_name),
             schema::clients::dsl::password_hash.eq(crypt(password_hash.digest, gen_salt("bf", 8))),
             schema::clients::dsl::phone_number.eq(phone_number),
-            schema::clients::dsl::box_public_key.eq(request.box_public_key.clone()),
-            schema::clients::dsl::signing_public_key.eq(request.signing_public_key.clone()),
+            schema::clients::dsl::box_public_key.eq(box_public_key),
+            schema::clients::dsl::signing_public_key.eq(signing_public_key),
         );
 
         let conn = self.db_writer.get().unwrap();
@@ -392,6 +404,7 @@ impl Rolodex {
         &self,
         request: &proto::UpdateClientRequest,
     ) -> Result<proto::UpdateClientResponse, RequestError> {
+        use crate::sanitizers::Optional;
         let client = if let Some(client) = &request.client {
             client.clone()
         } else {
@@ -400,16 +413,20 @@ impl Rolodex {
 
         let request_uuid = uuid::Uuid::parse_str(&client.client_id)?;
 
+        let updated_client = models::UpdateClient {
+            full_name: sanitizers::full_name(&client.full_name),
+            box_public_key: sanitizers::public_key(&client.box_public_key),
+            signing_public_key: sanitizers::public_key(&client.signing_public_key),
+            handle: sanitizers::handle(&client.handle).into_option(),
+            profile: sanitizers::profile(&client.profile).into_option(),
+        };
+
         let conn = self.db_writer.get().unwrap();
         let updated_row = conn.transaction::<_, Error, _>(|| {
             let updated_row: models::Client = diesel::update(
                 schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
             )
-            .set((
-                schema::clients::full_name.eq(client.full_name),
-                schema::clients::box_public_key.eq(client.box_public_key),
-                schema::clients::signing_public_key.eq(client.signing_public_key),
-            ))
+            .set(&updated_client)
             .get_result(&conn)?;
 
             insert_client_action(
@@ -561,6 +578,34 @@ impl Rolodex {
             result: proto::Result::Success as i32,
         })
     }
+
+    // Check if handle is available
+    #[instrument(INFO)]
+    fn handle_is_handle_available(
+        &self,
+        request: &proto::IsHandleAvailableRequest,
+    ) -> Result<proto::IsHandleAvailableResponse, RequestError> {
+        use diesel::dsl::*;
+        use diesel::prelude::*;
+        let handle = sanitizers::handle(&request.handle);
+
+        let conn = self.db_reader.get().unwrap();
+
+        let count: i64 = schema::clients::table
+            .filter(schema::clients::dsl::handle.eq(&handle))
+            .count()
+            .first(&conn)?;
+
+        if count == 0 {
+            Ok(proto::IsHandleAvailableResponse {
+                available: proto::is_handle_available_response::Availability::IsAvailable as i32,
+            })
+        } else {
+            Ok(proto::IsHandleAvailableResponse {
+                available: proto::is_handle_available_response::Availability::NotAvailable as i32,
+            })
+        }
+    }
 }
 
 impl proto::server::Rolodex for Rolodex {
@@ -656,6 +701,22 @@ impl proto::server::Rolodex for Rolodex {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_update_client_phone_number(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
+    type IsHandleAvailableFuture = future::FutureResult<
+        Response<proto::IsHandleAvailableResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn is_handle_available(
+        &mut self,
+        request: Request<proto::IsHandleAvailableRequest>,
+    ) -> Self::IsHandleAvailableFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_is_handle_available(request.get_ref())
             .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
@@ -1117,6 +1178,8 @@ mod tests {
                     full_name: "bob nob".into(),
                     box_public_key: "herp derp".into(),
                     signing_public_key: "herp derp".into(),
+                    handle: "".into(),
+                    profile: "".into(),
                 }),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
