@@ -404,7 +404,7 @@ impl Rolodex {
         &self,
         request: &proto::UpdateClientRequest,
     ) -> Result<proto::UpdateClientResponse, RequestError> {
-        use crate::sanitizers::Optional;
+        use crate::optional::Optional;
         let client = if let Some(client) = &request.client {
             client.clone()
         } else {

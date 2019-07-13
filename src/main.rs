@@ -29,6 +29,7 @@ extern crate yansi;
 mod config;
 mod email;
 mod models;
+mod optional;
 mod password_hash;
 mod sanitizers;
 mod schema;
