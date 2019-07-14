@@ -387,15 +387,29 @@ impl Rolodex {
         &self,
         request: &proto::GetClientRequest,
     ) -> Result<proto::GetClientResponse, RequestError> {
-        let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
+        match &request.id {
+            Some(proto::get_client_request::Id::ClientId(client_id)) => {
+                let request_uuid = uuid::Uuid::parse_str(&client_id)?;
 
-        let conn = self.db_reader.get().unwrap();
+                let conn = self.db_reader.get().unwrap();
 
-        let client: models::Client = schema::clients::table
-            .filter(schema::clients::dsl::uuid.eq(&request_uuid))
-            .first(&conn)?;
+                let client: models::Client = schema::clients::table
+                    .filter(schema::clients::dsl::uuid.eq(&request_uuid))
+                    .first(&conn)?;
 
-        Ok(client.into())
+                Ok(client.into())
+            }
+            Some(proto::get_client_request::Id::Handle(handle)) => {
+                let conn = self.db_reader.get().unwrap();
+
+                let client: models::Client = schema::clients::table
+                    .filter(schema::clients::dsl::handle.eq(&handle))
+                    .first(&conn)?;
+
+                Ok(client.into())
+            }
+            _ => Err(RequestError::NotFound),
+        }
     }
 
     // Updates the underlying client model
@@ -578,34 +592,6 @@ impl Rolodex {
             result: proto::Result::Success as i32,
         })
     }
-
-    // Check if handle is available
-    #[instrument(INFO)]
-    fn handle_is_handle_available(
-        &self,
-        request: &proto::IsHandleAvailableRequest,
-    ) -> Result<proto::IsHandleAvailableResponse, RequestError> {
-        use diesel::dsl::*;
-        use diesel::prelude::*;
-        let handle = sanitizers::handle(&request.handle);
-
-        let conn = self.db_reader.get().unwrap();
-
-        let count: i64 = schema::clients::table
-            .filter(schema::clients::dsl::handle.eq(&handle))
-            .count()
-            .first(&conn)?;
-
-        if count == 0 {
-            Ok(proto::IsHandleAvailableResponse {
-                available: proto::is_handle_available_response::Availability::IsAvailable as i32,
-            })
-        } else {
-            Ok(proto::IsHandleAvailableResponse {
-                available: proto::is_handle_available_response::Availability::NotAvailable as i32,
-            })
-        }
-    }
 }
 
 impl proto::server::Rolodex for Rolodex {
@@ -701,22 +687,6 @@ impl proto::server::Rolodex for Rolodex {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_update_client_phone_number(request.get_ref())
-            .map(Response::new)
-            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
-            .into_future()
-    }
-
-    type IsHandleAvailableFuture = future::FutureResult<
-        Response<proto::IsHandleAvailableResponse>,
-        rolodex_grpc::tower_grpc::Status,
-    >;
-    fn is_handle_available(
-        &mut self,
-        request: Request<proto::IsHandleAvailableRequest>,
-    ) -> Self::IsHandleAvailableFuture {
-        use futures::future::IntoFuture;
-        use rolodex_grpc::tower_grpc::{Code, Status};
-        self.handle_is_handle_available(request.get_ref())
             .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
