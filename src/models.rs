@@ -29,14 +29,15 @@ pub struct NewClient {
     pub signing_public_key: String,
 }
 
-#[derive(AsChangeset)]
+#[derive(AsChangeset, Debug)]
 #[table_name = "clients"]
+#[changeset_options(treat_none_as_null = "true")]
 pub struct UpdateClient {
-    pub box_public_key: String,
     pub full_name: String,
-    pub handle: Option<String>,
-    pub profile: Option<String>,
+    pub box_public_key: String,
     pub signing_public_key: String,
+    pub profile: Option<String>,
+    pub handle: Option<String>,
 }
 
 #[derive(Queryable, Associations, Identifiable)]

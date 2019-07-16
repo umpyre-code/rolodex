@@ -28,8 +28,8 @@ table! {
         phone_number -> Text,
         box_public_key -> Text,
         signing_public_key -> Text,
-        handle -> Nullable<Text>,
         profile -> Nullable<Text>,
+        handle -> Nullable<Text>,
     }
 }
 
@@ -50,4 +50,8 @@ table! {
 joinable!(client_account_actions -> clients (client_id));
 joinable!(unique_email_addresses -> clients (client_id));
 
-allow_tables_to_appear_in_same_query!(client_account_actions, clients, unique_email_addresses,);
+allow_tables_to_appear_in_same_query!(
+    client_account_actions,
+    clients,
+    unique_email_addresses,
+);

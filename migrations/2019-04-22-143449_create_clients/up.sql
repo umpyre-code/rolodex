@@ -8,5 +8,5 @@ CREATE TABLE clients (
   phone_number TEXT NOT NULL UNIQUE,
   box_public_key TEXT NOT NULL,
   signing_public_key TEXT NOT NULL,
-  handle TEXT UNIQUE,
-  profile TEXT)
+  profile TEXT,
+  handle TEXT UNIQUE)

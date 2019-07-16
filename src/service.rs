@@ -1073,7 +1073,9 @@ mod tests {
             assert_eq!(auth_result.unwrap().client_id, client.client_id);
 
             let get_client = rolodex.handle_get_client(&proto::GetClientRequest {
-                client_id: client.client_id.to_string(),
+                id: Some(rolodex_grpc::proto::get_client_request::Id::ClientId(
+                    client.client_id.clone(),
+                )),
                 calling_client_id: client.client_id.to_string(),
             });
 
@@ -1148,8 +1150,8 @@ mod tests {
                     full_name: "bob nob".into(),
                     box_public_key: "herp derp".into(),
                     signing_public_key: "herp derp".into(),
-                    handle: "".into(),
-                    profile: "".into(),
+                    handle: "handle".into(),
+                    profile: "profile".into(),
                 }),
                 location: Some(proto::Location {
                     ip_address: "127.0.0.1".into(),
@@ -1167,14 +1169,19 @@ mod tests {
 
             let updated_client = rolodex
                 .handle_get_client(&proto::GetClientRequest {
-                    calling_client_id: client.client_id.to_string(),
-                    client_id: client.client_id.to_string(),
+                    calling_client_id: client.client_id.clone(),
+                    id: Some(rolodex_grpc::proto::get_client_request::Id::ClientId(
+                        client.client_id.clone(),
+                    )),
                 })
                 .unwrap();
+
             let updated_client = updated_client.client.unwrap().clone();
             assert_eq!(updated_client.full_name, "bob nob");
             assert_eq!(updated_client.box_public_key, "herp derp");
             assert_eq!(updated_client.signing_public_key, "herp derp");
+            assert_eq!(updated_client.handle, "handle");
+            assert_eq!(updated_client.profile, "profile");
 
             // Login with new password
             let auth_result = rolodex.handle_authenticate(&proto::AuthRequest {

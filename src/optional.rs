@@ -17,3 +17,15 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_optional() {
+        assert_eq!(String::from("lol").into_option(), Some(String::from("lol")));
+        assert_eq!(String::from("").into_option(), None);
+    }
+}
