@@ -29,7 +29,7 @@ table! {
         box_public_key -> Text,
         signing_public_key -> Text,
         profile -> Nullable<Text>,
-        handle -> Nullable<Text>,
+        handle -> Nullable<Citext>,
     }
 }
 

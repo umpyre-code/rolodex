@@ -1,3 +1,11 @@
+use std::io::Write;
+
+use diesel::deserialize::{self, FromSql};
+use diesel::expression::{Expression};
+use diesel::pg::Pg;
+use diesel::serialize::{self, Output, ToSql};
+use diesel::sql_types::Text;
+
 #[derive(Debug, PartialEq, DbEnum)]
 #[PgType = "account_action"]
 #[DieselType = "Account_action"]
@@ -19,3 +27,5 @@ pub enum ClientAccountAction {
     #[db_rename = "authenticated"]
     Authenticated,
 }
+
+pub type Citext = Text;
