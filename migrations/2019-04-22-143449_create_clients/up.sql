@@ -1,5 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS citext;
-
 CREATE TABLE clients (
   id BIGSERIAL PRIMARY KEY,
   uuid UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4 (),
@@ -11,4 +9,5 @@ CREATE TABLE clients (
   box_public_key TEXT NOT NULL,
   signing_public_key TEXT NOT NULL,
   profile TEXT,
-  handle CITEXT UNIQUE)
+  handle TEXT UNIQUE,
+  handle_lowercase TEXT UNIQUE)

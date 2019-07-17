@@ -2,7 +2,7 @@ use crate::email;
 use crate::models;
 use crate::sanitizers;
 use crate::schema;
-use crate::sql_types;
+use crate::sql_types::*;
 
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -212,7 +212,7 @@ sql_function! {
 
 fn insert_client_action(
     client_id: i64,
-    action: sql_types::ClientAccountAction,
+    action: ClientAccountAction,
     location: &Option<proto::Location>,
     conn: &diesel::pg::PgConnection,
 ) -> Result<(), Error> {
@@ -308,7 +308,7 @@ impl Rolodex {
 
         insert_client_action(
             client.id,
-            sql_types::ClientAccountAction::Authenticated,
+            ClientAccountAction::Authenticated,
             &request.location,
             &conn,
         )?;
@@ -369,7 +369,7 @@ impl Rolodex {
 
             insert_client_action(
                 client.id,
-                sql_types::ClientAccountAction::Created,
+                ClientAccountAction::Created,
                 &request.location,
                 &conn,
             )?;
@@ -401,9 +401,10 @@ impl Rolodex {
             }
             Some(proto::get_client_request::Id::Handle(handle)) => {
                 let conn = self.db_reader.get().unwrap();
+                let handle_lowercase = sanitizers::handle(&handle).to_lowercase();
 
                 let client: models::Client = schema::clients::table
-                    .filter(schema::clients::dsl::handle.eq(&handle))
+                    .filter(schema::clients::dsl::handle_lowercase.eq(&handle_lowercase))
                     .first(&conn)?;
 
                 Ok(client.into())
@@ -431,8 +432,9 @@ impl Rolodex {
             full_name: sanitizers::full_name(&client.full_name),
             box_public_key: sanitizers::public_key(&client.box_public_key),
             signing_public_key: sanitizers::public_key(&client.signing_public_key),
-            handle: sanitizers::handle(&client.handle).into_option(),
             profile: sanitizers::profile(&client.profile).into_option(),
+            handle: sanitizers::handle(&client.handle).into_option(),
+            handle_lowercase: sanitizers::handle(&client.handle).to_lowercase().into_option(),
         };
 
         let conn = self.db_writer.get().unwrap();
@@ -445,7 +447,7 @@ impl Rolodex {
 
             insert_client_action(
                 updated_row.id,
-                sql_types::ClientAccountAction::Updated,
+                ClientAccountAction::Updated,
                 &request.location,
                 &conn,
             )?;
@@ -487,7 +489,7 @@ impl Rolodex {
 
             insert_client_action(
                 updated_row.id,
-                sql_types::ClientAccountAction::PasswordUpdated,
+ClientAccountAction::PasswordUpdated,
                 &request.location,
                 &conn,
             )?;
@@ -543,7 +545,7 @@ impl Rolodex {
 
             insert_client_action(
                 client.id,
-                sql_types::ClientAccountAction::EmailUpdated,
+                ClientAccountAction::EmailUpdated,
                 &request.location,
                 &conn,
             )?;
@@ -578,7 +580,7 @@ impl Rolodex {
 
             insert_client_action(
                 updated_row.id,
-                sql_types::ClientAccountAction::PhoneNumberUpdated,
+                ClientAccountAction::PhoneNumberUpdated,
                 &request.location,
                 &conn,
             )?;
@@ -1172,6 +1174,38 @@ mod tests {
                     calling_client_id: client.client_id.clone(),
                     id: Some(rolodex_grpc::proto::get_client_request::Id::ClientId(
                         client.client_id.clone(),
+                    )),
+                })
+                .unwrap();
+
+            let updated_client = updated_client.client.unwrap().clone();
+            assert_eq!(updated_client.full_name, "bob nob");
+            assert_eq!(updated_client.box_public_key, "herp derp");
+            assert_eq!(updated_client.signing_public_key, "herp derp");
+            assert_eq!(updated_client.handle, "handle");
+            assert_eq!(updated_client.profile, "profile");
+
+            let updated_client = rolodex
+                .handle_get_client(&proto::GetClientRequest {
+                    calling_client_id: client.client_id.clone(),
+                    id: Some(rolodex_grpc::proto::get_client_request::Id::Handle(
+                        "handle".into(),
+                    )),
+                })
+                .unwrap();
+
+            let updated_client = updated_client.client.unwrap().clone();
+            assert_eq!(updated_client.full_name, "bob nob");
+            assert_eq!(updated_client.box_public_key, "herp derp");
+            assert_eq!(updated_client.signing_public_key, "herp derp");
+            assert_eq!(updated_client.handle, "handle");
+            assert_eq!(updated_client.profile, "profile");
+
+            let updated_client = rolodex
+                .handle_get_client(&proto::GetClientRequest {
+                    calling_client_id: client.client_id.clone(),
+                    id: Some(rolodex_grpc::proto::get_client_request::Id::Handle(
+                        "Handle".into(),
                     )),
                 })
                 .unwrap();

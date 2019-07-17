@@ -18,6 +18,7 @@ pub struct Client {
     pub signing_public_key: String,
     pub profile: Option<String>,
     pub handle: Option<String>,
+    pub handle_lowercase: Option<String>,
 }
 
 #[derive(Queryable, Insertable)]
@@ -38,6 +39,7 @@ pub struct UpdateClient {
     pub signing_public_key: String,
     pub profile: Option<String>,
     pub handle: Option<String>,
+    pub handle_lowercase: Option<String>,
 }
 
 #[derive(Queryable, Associations, Identifiable)]
