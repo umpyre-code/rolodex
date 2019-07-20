@@ -12,7 +12,8 @@ pub struct Client {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub full_name: String,
-    pub email: String,
+    pub password_verifier: Vec<u8>,
+    pub password_salt: Vec<u8>,
     pub phone_number: String,
     pub box_public_key: String,
     pub signing_public_key: String,
@@ -21,13 +22,24 @@ pub struct Client {
     pub handle_lowercase: Option<String>,
 }
 
-#[derive(Queryable, Insertable)]
+#[derive(Insertable)]
 #[table_name = "clients"]
 pub struct NewClient {
     pub full_name: String,
+    pub password_verifier: Vec<u8>,
+    pub password_salt: Vec<u8>,
     pub phone_number: String,
     pub box_public_key: String,
     pub signing_public_key: String,
+}
+
+// Struct used for client auth flow
+#[derive(Queryable)]
+pub struct ClientAuth {
+    pub id: i64,
+    pub uuid: uuid::Uuid,
+    pub password_verifier: Vec<u8>,
+    pub password_salt: Vec<u8>,
 }
 
 #[derive(AsChangeset, Debug)]

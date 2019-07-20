@@ -82,7 +82,7 @@ impl FromStr for Email {
                 email_as_entered: email.into(),
                 email_without_labels: format!("{}@{}", client, domain),
                 inbox: inbox.into(),
-                client: client,
+                client,
                 label: label.into(),
                 domain: domain.into(),
             })
@@ -98,7 +98,7 @@ impl Email {
     #[instrument(INFO)]
     pub fn check_validity(
         &self,
-        redis_conn: &r2d2_redis::redis::Connection,
+        redis_conn: &mut r2d2_redis::redis::Connection,
     ) -> Result<(), EmailError> {
         use futures::Future;
         use std::str::FromStr;
@@ -258,13 +258,13 @@ mod tests {
 
         tokio::run(future::lazy(|| {
             let client = redis::Client::open("redis://127.0.0.1/").unwrap();
-            let redis_conn = client.get_connection().unwrap();
+            let mut redis_conn = client.get_connection().unwrap();
             assert_eq!(redis_conn.is_open(), true);
 
             assert_eq!(
                 Email::from_str("brenden@brndn.io")
                     .unwrap()
-                    .check_validity(&redis_conn)
+                    .check_validity(&mut redis_conn)
                     .is_ok(),
                 true
             );
@@ -272,7 +272,7 @@ mod tests {
             assert_eq!(
                 Email::from_str("brenden@com")
                     .unwrap()
-                    .check_validity(&redis_conn)
+                    .check_validity(&mut redis_conn)
                     .is_err(),
                 true
             );
@@ -280,7 +280,7 @@ mod tests {
             assert_eq!(
                 Email::from_str("brenden@mailinator.com")
                     .unwrap()
-                    .check_validity(&redis_conn)
+                    .check_validity(&mut redis_conn)
                     .is_err(),
                 true
             );
@@ -288,7 +288,7 @@ mod tests {
             assert_eq!(
                 Email::from_str("brenden@lolnotactuallyarealdomainthatexists.com")
                     .unwrap()
-                    .check_validity(&redis_conn)
+                    .check_validity(&mut redis_conn)
                     .is_err(),
                 true
             );
