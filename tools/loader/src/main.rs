@@ -63,13 +63,13 @@ fn add_slick_to_set(
     key: &str,
     slice: &[String],
 ) -> Result<usize, Error> {
-    let con = redis_client.get_connection()?;
-    redis::transaction(&con, &[key], |pipe| {
+    let mut con = redis_client.get_connection()?;
+    redis::transaction(&mut con, &[key], |con, pipe| {
         pipe.del(key);
         slice.iter().for_each(|item| {
             pipe.sadd(key, item);
         });
-        pipe.query(&con)
+        pipe.query(con)
     })?;
     let member_count: usize = con.scard(key)?;
 
