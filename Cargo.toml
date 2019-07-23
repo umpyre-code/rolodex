@@ -36,4 +36,3 @@ trust-dns = { version = "0.16", default-features = false, features = ["dns-over-
 url = "2"
 uuid = "0.7"
 yansi = "0.5"
-rust-argon2 = "0.4"
