@@ -16,7 +16,6 @@ extern crate failure;
 extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
-extern crate argon2;
 extern crate instrumented;
 extern crate phonenumber;
 extern crate r2d2_redis;
