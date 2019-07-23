@@ -72,7 +72,7 @@ pub fn main() -> Result<(), Error> {
 
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        error!("Usage:  <rolodex addr>");
+        error!("Usage: {} <addr>", args[0]);
         return Err(Error::BadArgs);
     }
 
