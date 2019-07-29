@@ -835,7 +835,7 @@ mod tests {
         r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
     ) {
         let pg_manager = ConnectionManager::<PgConnection>::new(
-            "postgres://postgres:password@127.0.0.1:5432/umpyre",
+            "postgres://postgres:password@127.0.0.1:5432/rolodex",
         );
         let db_pool = Pool::builder().build(pg_manager).unwrap();
 
