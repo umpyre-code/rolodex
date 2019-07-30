@@ -852,7 +852,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "opaque-debug"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -1512,7 +1512,7 @@ dependencies = [
  "byte-tools 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "digest 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "opaque-debug 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "opaque-debug 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2331,7 +2331,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum num-traits 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "6ba9a427cfca2be13aa6f6403b0b7e7368fe982bfa16fccc450ce74c46cd9b32"
 "checksum num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bcef43580c035376c0705c42792c294b66974abbfd2789b511784023f71f3273"
 "checksum oncemutex 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "44d11de466f4a3006fe8a5e7ec84e93b79c70cb992ae0aa0eb631ad2df8abfe2"
-"checksum opaque-debug 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "93f5bb2e8e8dec81642920ccff6b61f1eb94fa3020c5a325c9851ff604152409"
+"checksum opaque-debug 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 "checksum owning_ref 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "49a4b8ea2179e6a2e27411d3bca09ca6dd630821cf6894c6c7c8467a8ee7ef13"
 "checksum parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ab41b4aed082705d1056416ae4468b6ea99d52599ecf3169b00088d43113e337"
 "checksum parking_lot 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fa7767817701cce701d5585b9c4db3cdd02086398322c1d7e8bf5094a96a2ce7"
