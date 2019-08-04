@@ -4,7 +4,7 @@ ARG SSH_KEY
 ARG SCCACHE_KEY
 
 # add sccache
-ENV SCCACHE_VERSION=0.2.8
+ENV SCCACHE_VERSION=0.2.9
 ADD https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz /tmp
 RUN cd /tmp \
   && tar xf sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz \
