@@ -80,6 +80,7 @@ message Client {
   string signing_public_key = 4;
   string handle = 5;
   string profile = 6;
+  int64 joined = 7;
 }
 
 // For creating new client accounts only
