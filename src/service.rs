@@ -194,6 +194,7 @@ impl From<models::Client> for proto::Client {
             handle: client.handle.unwrap_or_else(|| String::from("")),
             profile: client.profile.unwrap_or_else(|| String::from("")),
             signing_public_key: client.signing_public_key,
+            joined: client.created_at.timestamp(),
         }
     }
 }
