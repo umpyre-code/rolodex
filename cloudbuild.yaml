@@ -22,7 +22,7 @@ steps:
 images: [
    'gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:latest','gcr.io/$PROJECT_ID/github.com/umpyre-code/rolodex:$REVISION_ID',
 ]
-timeout: 1h
+timeout: 3600s
 secrets:
 - kmsKeyName: projects/umpyre/locations/global/keyRings/deploy/cryptoKeys/deploy-key
   secretEnv:
