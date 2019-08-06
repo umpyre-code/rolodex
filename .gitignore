@@ -12,5 +12,8 @@
 # Ignore dotenv
 .env
 
+# Ignore node files
+node_modules
+
 # Ignore GCP sql proxy
 cloud_sql_proxy
