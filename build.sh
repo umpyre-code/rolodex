@@ -40,7 +40,7 @@ cargo build --release --out-dir=out -Z unstable-options
 
 sccache -s
 
-tar czf cache.tar.gz sccache target node_modules
+tar czf cache.tar.gz sccache target
 gsutil cp cache.tar.gz gs://umpyre-sccache/$REPO_NAME/cache.tar.gz || true
 rm -f cache.tar.gz
 cd $CARGO_HOME
