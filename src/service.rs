@@ -278,7 +278,7 @@ impl Rolodex {
         &self,
         request: &proto::AuthHandshakeRequest,
     ) -> Result<proto::AuthHandshakeResponse, RequestError> {
-        use data_encoding::BASE64_NOPAD;
+        use data_encoding::BASE64URL_NOPAD;
         use r2d2_redis::redis::Commands;
         use rand::rngs::OsRng;
         use rand::RngCore;
@@ -319,8 +319,8 @@ impl Rolodex {
         let mut redis_conn = self.redis_writer.get()?;
 
         redis_conn.set_ex(
-            format!("auth:{}:{}", email, BASE64_NOPAD.encode(&request.a_pub)),
-            BASE64_NOPAD.encode(&b),
+            format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub)),
+            BASE64URL_NOPAD.encode(&b),
             300,
         )?;
 
@@ -345,7 +345,7 @@ impl Rolodex {
         &self,
         request: &proto::AuthVerifyRequest,
     ) -> Result<proto::AuthVerifyResponse, RequestError> {
-        use data_encoding::BASE64_NOPAD;
+        use data_encoding::BASE64URL_NOPAD;
         use r2d2_redis::redis;
         use r2d2_redis::redis::PipelineCommands;
         use rolodex_grpc::proto::AuthVerifyResponse;
@@ -357,7 +357,7 @@ impl Rolodex {
 
         let mut redis_conn = self.redis_writer.get()?;
 
-        let key = format!("auth:{}:{}", email, BASE64_NOPAD.encode(&request.a_pub));
+        let key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
 
         let response: Option<(String,)> = redis::pipe()
             .get(key.clone())
@@ -366,7 +366,7 @@ impl Rolodex {
             .query(&mut *redis_conn)?;
 
         let b = match response {
-            Some(response) => BASE64_NOPAD.decode(response.0.as_bytes()).unwrap(),
+            Some(response) => BASE64URL_NOPAD.decode(response.0.as_bytes()).unwrap(),
             _ => {
                 return Err(RequestError::InvalidPassword {
                     err: "could not retrieve key".into(),
