@@ -103,13 +103,13 @@ impl Email {
         use futures::Future;
         use std::str::FromStr;
 
-        use r2d2_redis_cluster::redis_cluster_rs::PipelineCommands;
+        use r2d2_redis_cluster::redis_cluster_rs::{pipe, PipelineCommands};
         use tokio::executor::Executor;
         use trust_dns::client::{ClientFuture, ClientHandle};
         use trust_dns::rr::{DNSClass, Name, RecordType};
         use trust_dns::udp::UdpClientStream;
 
-        let (is_banned_email_domain, in_public_suffix_list): (bool, bool) = redis::pipe()
+        let (is_banned_email_domain, in_public_suffix_list): (bool, bool) = pipe()
             .sismember("banned_email_domains", &self.domain)
             .sismember("public_suffix_list", &self.domain)
             .query(redis_conn)?;
