@@ -38,8 +38,8 @@ pub struct Email {
     domain: String,
 }
 
-impl From<r2d2_redis::redis::RedisError> for EmailError {
-    fn from(err: r2d2_redis::redis::RedisError) -> EmailError {
+impl From<r2d2_redis_cluster::redis::RedisError> for EmailError {
+    fn from(err: r2d2_redis_cluster::redis::RedisError) -> EmailError {
         EmailError::DatabaseError {
             err: format!("{}", err),
         }

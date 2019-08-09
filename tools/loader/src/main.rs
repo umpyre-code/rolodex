@@ -1,36 +1,22 @@
 extern crate data_encoding;
-extern crate redis;
+extern crate redis_cluster_rs;
 extern crate reqwest;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-extern crate url;
 #[macro_use]
 extern crate failure;
-extern crate sodiumoxide;
 
-use redis::Commands;
-use redis::PipelineCommands;
-use url::Url;
+use redis_cluster_rs::{Commands, PipelineCommands};
 
 #[derive(Debug, Fail)]
 enum Error {
-    #[fail(display = "Url parser error: {}", err)]
-    UrlParse { err: String },
     #[fail(display = "request failed: {}", err)]
     Reqwest { err: String },
     #[fail(display = "redis error: {}", err)]
     Redis { err: String },
     #[fail(display = "bad arguments")]
     BadArgs,
-}
-
-impl From<url::ParseError> for Error {
-    fn from(err: url::ParseError) -> Error {
-        Error::UrlParse {
-            err: format!("{}", err),
-        }
-    }
 }
 
 impl From<reqwest::Error> for Error {
@@ -41,8 +27,8 @@ impl From<reqwest::Error> for Error {
     }
 }
 
-impl From<redis::RedisError> for Error {
-    fn from(err: redis::RedisError) -> Error {
+impl From<redis_cluster_rs::redis::RedisError> for Error {
+    fn from(err: redis_cluster_rs::redis::RedisError) -> Error {
         Error::Redis {
             err: format!("{}", err),
         }
@@ -50,12 +36,12 @@ impl From<redis::RedisError> for Error {
 }
 
 fn add_slick_to_set(
-    redis_client: &redis::Client,
+    redis_client: &redis_cluster_rs::Client,
     key: &str,
     slice: &[String],
 ) -> Result<usize, Error> {
     let mut con = redis_client.get_connection()?;
-    redis::transaction(&mut con, &[key], |con, pipe| {
+    redis_cluster_rs::redis::transaction(&mut con, &[key], |con, pipe| {
         pipe.del(key);
         slice.iter().for_each(|item| {
             pipe.sadd(key, item);
@@ -79,9 +65,9 @@ fn parse_public_suffix_list(list: String) -> Vec<String> {
 
 fn update_public_suffix_list(
     reqwest_client: &reqwest::Client,
-    redis_client: &redis::Client,
+    redis_client: &redis_cluster_rs::Client,
 ) -> Result<(), Error> {
-    let public_suffix_url = Url::parse("https://publicsuffix.org/list/public_suffix_list.dat")?;
+    let public_suffix_url = "https://publicsuffix.org/list/public_suffix_list.dat";
 
     info!("Fetching public suffix list from {}", public_suffix_url);
     let public_suffix_list =
@@ -106,9 +92,9 @@ fn parse_banned_domains_list(list: String) -> Vec<String> {
 
 fn update_banned_domains_list(
     reqwest_client: &reqwest::Client,
-    redis_client: &redis::Client,
+    redis_client: &redis_cluster_rs::Client,
 ) -> Result<(), Error> {
-    let banned_domains_url = Url::parse("https://raw.githubusercontent.com/martenson/disposable-email-domains/master/disposable_email_blocklist.conf")?;
+    let banned_domains_url = "https://raw.githubusercontent.com/martenson/disposable-email-domains/master/disposable_email_blocklist.conf";
     info!("Fetching banned domains list from {}", banned_domains_url);
 
     let mut banned_domains_list =
@@ -129,6 +115,7 @@ fn update_banned_domains_list(
 }
 
 fn main() -> Result<(), Error> {
+    use redis_cluster_rs::redis::IntoConnectionInfo;
     use std::env;
 
     env_logger::init();
@@ -143,7 +130,8 @@ fn main() -> Result<(), Error> {
     info!("args: {:?}", args);
 
     let reqwest_client = reqwest::Client::new();
-    let redis_client = redis::Client::open(&format!("redis://{}/", args[1])[..])?;
+    let redis_client =
+        redis_cluster_rs::Client::open(vec![args[1].into_connection_info().unwrap()])?;
 
     update_public_suffix_list(&reqwest_client, &redis_client)?;
     update_banned_domains_list(&reqwest_client, &redis_client)?;
