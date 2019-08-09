@@ -71,9 +71,13 @@ fn get_redis_pool(
     readonly: bool,
 ) -> r2d2_redis_cluster::r2d2::Pool<RedisClusterConnectionManager> {
     use r2d2_redis_cluster::redis_cluster_rs::redis::IntoConnectionInfo;
-    let mut manager =
-        RedisClusterConnectionManager::new(vec![redis.address.into_connection_info().unwrap()])
-            .unwrap();
+    let mut manager = RedisClusterConnectionManager::new(
+        vec![format!("redis://{}", redis.address)]
+            .iter()
+            .map(|c| c.into_connection_info().unwrap())
+            .collect(),
+    )
+    .unwrap();
     manager.set_readonly(readonly);
     let pool = r2d2_redis_cluster::r2d2::Pool::builder()
         .build(manager)
