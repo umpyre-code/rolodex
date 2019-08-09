@@ -283,7 +283,7 @@ impl Rolodex {
         request: &proto::AuthHandshakeRequest,
     ) -> Result<proto::AuthHandshakeResponse, RequestError> {
         use data_encoding::BASE64URL_NOPAD;
-        use r2d2_redis_cluster::redis_cluster_rs::Commands;
+        use r2d2_redis_cluster::Commands;
         use rand::rngs::OsRng;
         use rand::RngCore;
         use sha3::Sha3_512;
