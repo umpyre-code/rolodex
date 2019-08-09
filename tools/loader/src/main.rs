@@ -130,8 +130,13 @@ fn main() -> Result<(), Error> {
     info!("args: {:?}", args);
 
     let reqwest_client = reqwest::Client::new();
-    let redis_client =
-        redis_cluster_rs::Client::open(vec![args[1].into_connection_info().unwrap()])?;
+
+    let redis_client = redis_cluster_rs::Client::open(
+        vec![format!("redis://{}", args[1])]
+            .iter()
+            .map(|c| c.into_connection_info().unwrap())
+            .collect(),
+    )?;
 
     update_public_suffix_list(&reqwest_client, &redis_client)?;
     update_banned_domains_list(&reqwest_client, &redis_client)?;
