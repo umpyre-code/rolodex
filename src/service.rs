@@ -6,14 +6,13 @@ use crate::sql_types::*;
 
 use diesel::prelude::*;
 use diesel::result::Error;
-use diesel::sql_types::{Integer, Text};
 use email::Email;
 use futures::future;
 use instrumented::{instrument, prometheus, register};
 use rolodex_grpc::proto;
 use rolodex_grpc::tower_grpc::{Request, Response};
 
-fn make_intcounter(name: &str, description: &str) -> prometheus::IntCounter {
+pub fn make_intcounter(name: &str, description: &str) -> prometheus::IntCounter {
     let counter = prometheus::IntCounter::new(name, description).unwrap();
     register(Box::new(counter.clone())).unwrap();
     counter
@@ -22,6 +21,12 @@ fn make_intcounter(name: &str, description: &str) -> prometheus::IntCounter {
 lazy_static! {
     static ref CLIENT_ADDED: prometheus::IntCounter =
         make_intcounter("client_added", "New client added");
+    static ref CLIENT_PHONE_VERIFIED: prometheus::IntCounter =
+        make_intcounter("client_phone_verified", "Client phone verified via SMS");
+    static ref CLIENT_PHONE_VERIFY_BAD_CODE: prometheus::IntCounter = make_intcounter(
+        "client_phone_verify_bad_code",
+        "Client phone verification failed due to bad code"
+    );
     static ref CLIENT_UPDATE_FAILED_INVALID_PHONE_NUMBER: prometheus::IntCounter = make_intcounter(
         "client_update_failed_invalid_phone_number",
         "Failed to add or update a client because of an invalid phone number",
@@ -164,15 +169,7 @@ impl From<uuid::parser::ParseError> for RequestError {
 impl From<models::Client> for rolodex_grpc::proto::GetClientResponse {
     fn from(client: models::Client) -> rolodex_grpc::proto::GetClientResponse {
         rolodex_grpc::proto::GetClientResponse {
-            client: Some(proto::Client {
-                box_public_key: client.box_public_key,
-                client_id: client.uuid.to_simple().to_string(),
-                full_name: client.full_name,
-                handle: client.handle.unwrap_or_else(|| String::from("")),
-                profile: client.profile.unwrap_or_else(|| String::from("")),
-                signing_public_key: client.signing_public_key,
-                joined: client.created_at.timestamp(),
-            }),
+            client: Some(client.into()),
         }
     }
 }
@@ -195,6 +192,7 @@ impl From<models::Client> for proto::Client {
             profile: client.profile.unwrap_or_else(|| String::from("")),
             signing_public_key: client.signing_public_key,
             joined: client.created_at.timestamp(),
+            phone_sms_verified: client.phone_sms_verified,
         }
     }
 }
@@ -255,6 +253,23 @@ fn validate_phone_number(
             err: "no phone number specified".to_string(),
         })
     }
+}
+
+fn generate_and_send_verification_code(client: &models::Client) -> i32 {
+    use crate::messagebird::Client;
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let code = rng.gen_range(100_000, 1_000_000);
+
+    let sms_client = Client::new();
+
+    let body = format!("Umpyre verification code: {}", code);
+
+    sms_client
+        .send_sms(&client.phone_number, &body)
+        .expect("couldn't send SMS");
+
+    code
 }
 
 impl Rolodex {
@@ -664,14 +679,12 @@ impl Rolodex {
     ) -> Result<proto::UpdateClientPhoneNumberResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
 
-        let phone_number = validate_phone_number(&request.phone_number)?;
-
         let conn = self.db_writer.get().unwrap();
         conn.transaction::<_, Error, _>(|| {
             let updated_row: models::Client = diesel::update(
                 schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
             )
-            .set(schema::clients::phone_number.eq(phone_number))
+            .set(schema::clients::phone_sms_verified.eq(true))
             .get_result(&conn)?;
 
             insert_client_action(
@@ -681,7 +694,7 @@ impl Rolodex {
                 &conn,
             )?;
 
-            Ok(())
+            Ok(updated_row)
         })?;
 
         CLIENT_UPDATED_PHONE_NUMBER.inc();
@@ -689,6 +702,94 @@ impl Rolodex {
         Ok(proto::UpdateClientPhoneNumberResponse {
             result: proto::Result::Success as i32,
         })
+    }
+
+    // Updates the underlying client model
+    #[instrument(INFO)]
+    fn handle_verify_phone(
+        &self,
+        request: &proto::VerifyPhoneRequest,
+    ) -> Result<proto::VerifyPhoneResponse, RequestError> {
+        use crate::models::PhoneVerificationCode;
+        use crate::schema::clients::columns::{phone_sms_verified, uuid as client_uuid};
+        use crate::schema::clients::table as clients;
+
+        let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
+
+        let conn = self.db_reader.get().unwrap();
+        let client: models::Client = clients.filter(client_uuid.eq(request_uuid)).first(&conn)?;
+        let db_code: PhoneVerificationCode =
+            PhoneVerificationCode::belonging_to(&client).first(&conn)?;
+
+        if db_code.code != request.code {
+            CLIENT_PHONE_VERIFY_BAD_CODE.inc();
+            Ok(proto::VerifyPhoneResponse {
+                result: proto::Result::Failure as i32,
+                client: Some(client.into()),
+            })
+        } else {
+            let conn = self.db_writer.get().unwrap();
+            let client = conn.transaction::<models::Client, Error, _>(|| {
+                let updated_row: models::Client =
+                    diesel::update(clients.filter(client_uuid.eq(request_uuid)))
+                        .set(phone_sms_verified.eq(true))
+                        .get_result(&conn)?;
+
+                insert_client_action(
+                    updated_row.id,
+                    ClientAccountAction::PhoneVerified,
+                    &request.location,
+                    &conn,
+                )?;
+
+                Ok(updated_row)
+            })?;
+
+            CLIENT_PHONE_VERIFIED.inc();
+
+            Ok(proto::VerifyPhoneResponse {
+                result: proto::Result::Success as i32,
+                client: Some(client.into()),
+            })
+        }
+    }
+
+    // Updates the underlying client model
+    #[instrument(INFO)]
+    fn handle_send_verification_code(
+        &self,
+        request: &proto::SendVerificationCodeRequest,
+    ) -> Result<proto::SendVerificationCodeResponse, RequestError> {
+        use crate::models::PhoneVerificationCode;
+        use crate::schema::clients::columns::{uuid as client_uuid};
+        use crate::schema::clients::table as clients;
+        use crate::schema::phone_verification_codes::table as phone_verification_codes;
+        use chrono::prelude::*;
+        use diesel::update;
+
+        let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
+
+        let conn = self.db_reader.get().unwrap();
+        let client: models::Client = clients.filter(client_uuid.eq(request_uuid)).first(&conn)?;
+        let db_code: PhoneVerificationCode =
+            PhoneVerificationCode::belonging_to(&client).first(&conn)?;
+
+        let duration = Utc::now().naive_utc() - db_code.updated_at;
+
+        // Don't send more than 1 code very 120 seconds (2 minutes)
+        if duration.num_seconds() > 120 {
+            let code = generate_and_send_verification_code(&client);
+
+            let conn = self.db_writer.get().unwrap();
+            update(
+                phone_verification_codes
+                    .filter(crate::schema::phone_verification_codes::columns::id.eq(db_code.id)),
+            )
+            .set(crate::schema::phone_verification_codes::columns::code.eq(code))
+            .execute(&conn)?;
+        }
+
+        Ok(proto::SendVerificationCodeResponse {})
     }
 }
 
@@ -804,6 +905,38 @@ impl proto::server::Rolodex for Rolodex {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_update_client_phone_number(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
+    type VerifyPhoneFuture = future::FutureResult<
+        Response<proto::VerifyPhoneResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn verify_phone(
+        &mut self,
+        request: Request<proto::VerifyPhoneRequest>,
+    ) -> Self::VerifyPhoneFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_verify_phone(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
+    type SendVerificationCodeFuture = future::FutureResult<
+        Response<proto::SendVerificationCodeResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn send_verification_code(
+        &mut self,
+        request: Request<proto::SendVerificationCodeRequest>,
+    ) -> Self::SendVerificationCodeFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_send_verification_code(request.get_ref())
             .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()

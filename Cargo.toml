@@ -21,6 +21,7 @@ phonenumber = "0.2"
 r2d2_redis_cluster = "0.1"
 rand = "0.7"
 regex = "1"
+reqwest = "0.9"
 rolodex-grpc = { path = "lib"}
 serde = "1.0"
 serde_derive = "1.0"

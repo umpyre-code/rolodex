@@ -10,7 +10,7 @@ host = "127.0.0.1"
 port = 5432
 username = "postgres"
 password = "password"
-name = "umpyre"
+name = "rolodex"
 connection_pool_size = 10
 
 [database.reader]
@@ -18,7 +18,7 @@ host = "127.0.0.1"
 port = 5432
 username = "postgres"
 password = "password"
-name = "umpyre"
+name = "rolodex"
 connection_pool_size = 10
 
 [metrics]
@@ -26,3 +26,6 @@ bind_to_address = "127.0.0.1:5001"
 
 [redis]
 address = "127.0.0.1:6379"
+
+[messagebird]
+api_key = "YU2LaAeEt1MrFUv0tIMeqXetM"

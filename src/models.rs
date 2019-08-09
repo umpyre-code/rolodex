@@ -20,6 +20,7 @@ pub struct Client {
     pub profile: Option<String>,
     pub handle: Option<String>,
     pub handle_lowercase: Option<String>,
+    pub phone_sms_verified: bool,
 }
 
 #[derive(Insertable)]
@@ -86,4 +87,15 @@ pub struct NewClientAccountAction {
     pub region: Option<String>,
     pub region_subdivision: Option<String>,
     pub city: Option<String>,
+}
+
+#[derive(Queryable, Associations, Identifiable)]
+#[table_name = "phone_verification_codes"]
+#[belongs_to(Client)]
+pub struct PhoneVerificationCode {
+    pub id: i64,
+    pub client_id: i64,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub code: i32,
 }

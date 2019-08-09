@@ -11,6 +11,12 @@ pub struct Config {
     pub database: Databases,
     pub metrics: Metrics,
     pub redis: Redis,
+    pub messagebird: MessageBird,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MessageBird {
+    pub api_key: String,
 }
 
 #[derive(Debug, Deserialize)]

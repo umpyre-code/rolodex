@@ -11,4 +11,5 @@ CREATE TABLE clients (
   signing_public_key TEXT NOT NULL,
   profile TEXT,
   handle TEXT UNIQUE,
-  handle_lowercase TEXT UNIQUE)
+  handle_lowercase TEXT UNIQUE,
+  phone_sms_verified BOOLEAN NOT NULL DEFAULT FALSE)

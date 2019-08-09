@@ -18,4 +18,6 @@ pub enum ClientAccountAction {
     Updated,
     #[db_rename = "authenticated"]
     Authenticated,
+    #[db_rename = "phone verified"]
+    PhoneVerified,
 }

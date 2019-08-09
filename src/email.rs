@@ -1,5 +1,4 @@
 use instrumented::instrument;
-use r2d2_redis_cluster::redis_cluster_rs::redis;
 use regex::Regex;
 use std::str::FromStr;
 
