@@ -1,5 +1,5 @@
 use instrumented::instrument;
-use r2d2_redis::redis;
+use r2d2_redis_cluster::redis_cluster_rs::redis;
 use regex::Regex;
 use std::str::FromStr;
 
@@ -38,8 +38,8 @@ pub struct Email {
     domain: String,
 }
 
-impl From<r2d2_redis_cluster::redis::RedisError> for EmailError {
-    fn from(err: r2d2_redis_cluster::redis::RedisError) -> EmailError {
+impl From<r2d2_redis_cluster::redis_cluster_rs::redis::RedisError> for EmailError {
+    fn from(err: r2d2_redis_cluster::redis_cluster_rs::redis::RedisError) -> EmailError {
         EmailError::DatabaseError {
             err: format!("{}", err),
         }
@@ -98,12 +98,12 @@ impl Email {
     #[instrument(INFO)]
     pub fn check_validity(
         &self,
-        redis_conn: &mut r2d2_redis::redis::Connection,
+        redis_conn: &mut dyn r2d2_redis_cluster::ConnectionLike,
     ) -> Result<(), EmailError> {
         use futures::Future;
         use std::str::FromStr;
 
-        use r2d2_redis::redis::PipelineCommands;
+        use r2d2_redis_cluster::redis_cluster_rs::PipelineCommands;
         use tokio::executor::Executor;
         use trust_dns::client::{ClientFuture, ClientHandle};
         use trust_dns::rr::{DNSClass, Name, RecordType};

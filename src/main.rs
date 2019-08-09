@@ -18,7 +18,7 @@ extern crate serde_derive;
 extern crate lazy_static;
 extern crate instrumented;
 extern crate phonenumber;
-extern crate r2d2_redis;
+extern crate r2d2_redis_cluster;
 extern crate rand;
 extern crate regex;
 extern crate rolodex_grpc;
@@ -39,7 +39,7 @@ mod service;
 mod sql_types;
 
 use futures::{Future, Stream};
-use r2d2_redis::RedisConnectionManager;
+use r2d2_redis_cluster::RedisClusterConnectionManager;
 use rolodex_grpc::proto::server;
 use tokio::net::TcpListener;
 use tower_hyper::server::{Http, Server};
@@ -66,9 +66,16 @@ fn get_db_pool(
     db_pool
 }
 
-fn get_redis_pool(redis: &config::Redis) -> r2d2_redis::r2d2::Pool<RedisConnectionManager> {
-    let manager = RedisConnectionManager::new(&format!("redis://{}/", redis.address)[..]).unwrap();
-    let pool = r2d2_redis::r2d2::Pool::builder()
+fn get_redis_pool(
+    redis: &config::Redis,
+    readonly: bool,
+) -> r2d2_redis_cluster::r2d2::Pool<RedisClusterConnectionManager> {
+    use r2d2_redis_cluster::redis_cluster_rs::redis::IntoConnectionInfo;
+    let mut manager =
+        RedisClusterConnectionManager::new(vec![redis.address.into_connection_info().unwrap()])
+            .unwrap();
+    manager.set_readonly(readonly);
+    let pool = r2d2_redis_cluster::r2d2::Pool::builder()
         .build(manager)
         .expect("Unable to create redis connection pool");
 
@@ -93,8 +100,8 @@ pub fn main() {
     let new_service = server::RolodexServer::new(service::Rolodex::new(
         get_db_pool(&config::CONFIG.database.reader),
         get_db_pool(&config::CONFIG.database.writer),
-        get_redis_pool(&config::CONFIG.redis.reader),
-        get_redis_pool(&config::CONFIG.redis.writer),
+        get_redis_pool(&config::CONFIG.redis, true),
+        get_redis_pool(&config::CONFIG.redis, false),
     ));
 
     let mut server = Server::new(new_service);

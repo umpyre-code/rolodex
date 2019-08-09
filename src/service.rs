@@ -63,8 +63,8 @@ lazy_static! {
 pub struct Rolodex {
     db_reader: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
     db_writer: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
-    redis_reader: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
-    redis_writer: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
+    redis_reader: r2d2_redis_cluster::r2d2::Pool<r2d2_redis_cluster::RedisClusterConnectionManager>,
+    redis_writer: r2d2_redis_cluster::r2d2::Pool<r2d2_redis_cluster::RedisClusterConnectionManager>,
 }
 
 #[derive(Debug, Fail)]
@@ -98,8 +98,8 @@ impl From<diesel::result::Error> for RequestError {
     }
 }
 
-impl From<r2d2_redis::r2d2::Error> for RequestError {
-    fn from(err: r2d2_redis::r2d2::Error) -> RequestError {
+impl From<r2d2_redis_cluster::r2d2::Error> for RequestError {
+    fn from(err: r2d2_redis_cluster::r2d2::Error) -> RequestError {
         RequestError::DatabaseError {
             err: format!("{}", err),
         }
@@ -114,8 +114,8 @@ impl From<failure::Error> for RequestError {
     }
 }
 
-impl From<r2d2_redis::redis::RedisError> for RequestError {
-    fn from(err: r2d2_redis::redis::RedisError) -> RequestError {
+impl From<r2d2_redis_cluster::redis_cluster_rs::redis::RedisError> for RequestError {
+    fn from(err: r2d2_redis_cluster::redis_cluster_rs::redis::RedisError) -> RequestError {
         RequestError::DatabaseError {
             err: format!("{}", err),
         }
@@ -261,8 +261,12 @@ impl Rolodex {
     pub fn new(
         db_reader: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
         db_writer: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
-        redis_reader: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
-        redis_writer: r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
+        redis_reader: r2d2_redis_cluster::r2d2::Pool<
+            r2d2_redis_cluster::RedisClusterConnectionManager,
+        >,
+        redis_writer: r2d2_redis_cluster::r2d2::Pool<
+            r2d2_redis_cluster::RedisClusterConnectionManager,
+        >,
     ) -> Self {
         Rolodex {
             db_reader,
@@ -279,7 +283,7 @@ impl Rolodex {
         request: &proto::AuthHandshakeRequest,
     ) -> Result<proto::AuthHandshakeResponse, RequestError> {
         use data_encoding::BASE64URL_NOPAD;
-        use r2d2_redis::redis::Commands;
+        use r2d2_redis_cluster::redis_cluster_rs::Commands;
         use rand::rngs::OsRng;
         use rand::RngCore;
         use sha3::Sha3_512;
@@ -346,8 +350,7 @@ impl Rolodex {
         request: &proto::AuthVerifyRequest,
     ) -> Result<proto::AuthVerifyResponse, RequestError> {
         use data_encoding::BASE64URL_NOPAD;
-        use r2d2_redis::redis;
-        use r2d2_redis::redis::PipelineCommands;
+        use r2d2_redis_cluster::redis_cluster_rs::{pipe, PipelineCommands};
         use rolodex_grpc::proto::AuthVerifyResponse;
         use sha3::Sha3_512;
         use srp::groups::G_2048;
@@ -359,7 +362,7 @@ impl Rolodex {
 
         let key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
 
-        let response: Option<(String,)> = redis::pipe()
+        let response: Option<(String,)> = pipe()
             .get(key.clone())
             .del(key.clone())
             .ignore()
@@ -834,15 +837,16 @@ mod tests {
 
     fn get_pools() -> (
         diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>,
-        r2d2_redis::r2d2::Pool<r2d2_redis::RedisConnectionManager>,
+        r2d2_redis_cluster::r2d2::Pool<r2d2_redis_cluster::RedisClusterConnectionManager>,
     ) {
         let pg_manager = ConnectionManager::<PgConnection>::new(
             "postgres://postgres:password@127.0.0.1:5432/rolodex",
         );
         let db_pool = Pool::builder().build(pg_manager).unwrap();
 
-        let redis_manager = r2d2_redis::RedisConnectionManager::new("redis://127.0.0.1/").unwrap();
-        let redis_pool = r2d2_redis::r2d2::Pool::builder()
+        let redis_manager =
+            r2d2_redis_cluster::RedisClusterConnectionManager::new("redis://127.0.0.1/").unwrap();
+        let redis_pool = r2d2_redis_cluster::r2d2::Pool::builder()
             .build(redis_manager)
             .unwrap();
 
