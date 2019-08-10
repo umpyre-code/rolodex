@@ -1495,7 +1495,7 @@ dependencies = [
 [[package]]
 name = "redis_cluster_rs"
 version = "0.1.8"
-source = "git+https://github.com/brndnmtthws/redis-cluster-rs#b191c96724ae5adf4ed7e89b39b80eda7f21e04f"
+source = "git+https://github.com/brndnmtthws/redis-cluster-rs#f68de0d9613957d367d8e375e8d0cecd9361251b"
 dependencies = [
  "crc16 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
