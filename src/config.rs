@@ -17,6 +17,7 @@ pub struct Config {
 #[derive(Debug, Deserialize)]
 pub struct MessageBird {
     pub api_key: String,
+    pub verification_enforced: bool,
 }
 
 #[derive(Debug, Deserialize)]

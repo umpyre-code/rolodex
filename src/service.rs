@@ -720,6 +720,7 @@ impl Rolodex {
         &self,
         request: &proto::VerifyPhoneRequest,
     ) -> Result<proto::VerifyPhoneResponse, RequestError> {
+        use crate::config;
         use crate::models::PhoneVerificationCode;
         use crate::schema::clients::columns::{phone_sms_verified, uuid as client_uuid};
         use crate::schema::clients::table as clients;
@@ -731,7 +732,7 @@ impl Rolodex {
         let db_code: PhoneVerificationCode =
             PhoneVerificationCode::belonging_to(&client).first(&conn)?;
 
-        if db_code.code != request.code {
+        if config::CONFIG.messagebird.verification_enforced && db_code.code != request.code {
             CLIENT_PHONE_VERIFY_BAD_CODE.inc();
             Ok(proto::VerifyPhoneResponse {
                 result: proto::Result::Failure as i32,
