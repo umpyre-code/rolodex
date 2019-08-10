@@ -1316,10 +1316,10 @@ dependencies = [
 [[package]]
 name = "r2d2_redis_cluster"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/brndnmtthws/r2d2-redis-cluster.git#2d8b593106600c829f8e922341e8b96cc25fefa4"
 dependencies = [
  "r2d2 0.8.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "redis_cluster_rs 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redis_cluster_rs 0.1.8 (git+https://github.com/brndnmtthws/redis-cluster-rs)",
 ]
 
 [[package]]
@@ -1495,9 +1495,10 @@ dependencies = [
 [[package]]
 name = "redis_cluster_rs"
 version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/brndnmtthws/redis-cluster-rs#b191c96724ae5adf4ed7e89b39b80eda7f21e04f"
 dependencies = [
  "crc16 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "redis 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1606,7 +1607,7 @@ dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "phonenumber 0.2.3+8.10.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "r2d2_redis_cluster 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "r2d2_redis_cluster 0.1.5 (git+https://github.com/brndnmtthws/r2d2-redis-cluster.git)",
  "rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2680,7 +2681,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "7a6e920b65c65f10b2ae65c831a81a073a89edd28c7cce89475bff467ab4167a"
 "checksum quote 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)" = "6ce23b6b870e8f94f81fb0a363d65d86675884b34a09043c81e5562f11c1f8e1"
 "checksum r2d2 0.8.5 (registry+https://github.com/rust-lang/crates.io-index)" = "bc42ce75d9f4447fb2a04bbe1ed5d18dd949104572850ec19b164e274919f81b"
-"checksum r2d2_redis_cluster 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "55b2f172c3536c95f621f40886a414e16e246644d6823369d92fe9a64a6a839f"
+"checksum r2d2_redis_cluster 0.1.5 (git+https://github.com/brndnmtthws/r2d2-redis-cluster.git)" = "<none>"
 "checksum radix_trie 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "ebcf72e767017c1aa4b63d4dd0b0b836a243b648fd81d41c6bf6e850ef7a95c7"
 "checksum rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)" = "6d71dacdc3c88c1fde3885a3be3fbab9f35724e6ce99467f7d9c5026132184ca"
 "checksum rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d47eab0e83d9693d40f825f86948aa16eff6750ead4bdffc4ab95b8b3a7f052c"
@@ -2698,7 +2699,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rand_xorshift 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cbf7e9e623549b0e21f6e97cf8ecf247c1a8fd2e8a992ae265314300b2455d5c"
 "checksum rdrand 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
 "checksum redis 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1b03b599645e2db97724125cdff11196b56a70b21837a6e68f0e55955989e0cc"
-"checksum redis_cluster_rs 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "6b1709fd2b90ef2b000f9217ec956c0f6d8eb1e096fe4250be62b9e5b583a8ad"
+"checksum redis_cluster_rs 0.1.8 (git+https://github.com/brndnmtthws/redis-cluster-rs)" = "<none>"
 "checksum redox_syscall 0.1.56 (registry+https://github.com/rust-lang/crates.io-index)" = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
 "checksum regex 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "88c3d9193984285d544df4a30c23a4e62ead42edf70a4452ceb76dac1ce05c26"
 "checksum regex-cache 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "32c86351f6af6bbf23b4c5f73ee4fdfe92d298fdf28572ea4f69494cabe38699"
