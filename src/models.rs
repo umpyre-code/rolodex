@@ -89,6 +89,14 @@ pub struct NewClientAccountAction {
     pub city: Option<String>,
 }
 
+#[derive(AsChangeset, Insertable, Associations)]
+#[table_name = "phone_verification_codes"]
+#[belongs_to(Client)]
+pub struct NewPhoneVerificationCode {
+    pub client_id: i64,
+    pub code: i32,
+}
+
 #[derive(Queryable, Associations, Identifiable)]
 #[table_name = "phone_verification_codes"]
 #[belongs_to(Client)]

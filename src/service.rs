@@ -481,6 +481,16 @@ impl Rolodex {
                 .values(&new_unique_email_address)
                 .execute(&conn)?;
 
+            let code = generate_and_send_verification_code(&client);
+            let new_phone_verification_code = models::NewPhoneVerificationCode {
+                client_id: client.id,
+                code,
+            };
+
+            diesel::insert_into(schema::phone_verification_codes::table)
+                .values(&new_phone_verification_code)
+                .execute(&conn)?;
+
             insert_client_action(
                 client.id,
                 ClientAccountAction::Created,
