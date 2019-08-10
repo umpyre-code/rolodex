@@ -761,7 +761,7 @@ impl Rolodex {
         request: &proto::SendVerificationCodeRequest,
     ) -> Result<proto::SendVerificationCodeResponse, RequestError> {
         use crate::models::PhoneVerificationCode;
-        use crate::schema::clients::columns::{uuid as client_uuid};
+        use crate::schema::clients::columns::uuid as client_uuid;
         use crate::schema::clients::table as clients;
         use crate::schema::phone_verification_codes::table as phone_verification_codes;
         use chrono::prelude::*;
