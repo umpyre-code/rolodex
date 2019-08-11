@@ -87,24 +87,27 @@ impl Client {
     }
 
     #[instrument(INFO)]
-    pub fn send_sms(
-        &self,
-        recipient: &str,
-        body: &str,
-    ) -> Result<SendMessageResponse, MessageError> {
-        use futures::Future;
-        use tokio::executor::Executor;
+    pub fn send_sms(&self, recipient: &str, body: &str) -> Result<(), MessageError> {
+        info!(
+            "pretending to send sms recipient={} body='{}'",
+            recipient, body
+        );
 
-        let mut exec = tokio::executor::DefaultExecutor::current();
+        Ok(())
 
-        let (tx, rx) = futures::sync::oneshot::channel();
-        exec.spawn(Box::new(
-            self.send_sms_async(recipient, body)
-                .and_then(|mut resp| resp.json::<SendMessageResponse>())
-                .map(|resp| resp)
-                .then(move |r| tx.send(r).map_err(|_werr| error!("failure"))),
-        ))
-        .unwrap();
-        rx.wait().unwrap().map_err(MessageError::from)
+        // use futures::Future;
+        // use tokio::executor::Executor;
+
+        // let mut exec = tokio::executor::DefaultExecutor::current();
+
+        // let (tx, rx) = futures::sync::oneshot::channel();
+        // exec.spawn(Box::new(
+        //     self.send_sms_async(recipient, body)
+        //         .and_then(|mut resp| resp.json::<SendMessageResponse>())
+        //         .map(|resp| resp)
+        //         .then(move |r| tx.send(r).map_err(|_werr| error!("failure"))),
+        // ))
+        // .unwrap();
+        // rx.wait().unwrap().map_err(MessageError::from)
     }
 }
