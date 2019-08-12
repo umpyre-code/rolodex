@@ -79,6 +79,7 @@ impl Client {
     ) -> impl Future<Item = reqwest::async::Response, Error = reqwest::Error> {
         let form = reqwest::async::multipart::Form::new()
             .text("recipients", recipient.to_owned())
+            .text("originator", "Umpyre".to_owned())
             .text("body", body.to_owned());
         self.client
             .post("https://rest.messagebird.com/messages")
