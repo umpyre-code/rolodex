@@ -25,6 +25,7 @@ reqwest = "0.9"
 rolodex-grpc = { path = "lib"}
 serde = "1.0"
 serde_derive = "1.0"
+serde_json = "1.0"
 sha3 = "0.8"
 srp = "0.4"
 tokio = "0.1"

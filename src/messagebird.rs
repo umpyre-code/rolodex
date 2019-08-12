@@ -102,8 +102,12 @@ impl Client {
         let (tx, rx) = futures::sync::oneshot::channel();
         exec.spawn(Box::new(
             self.send_sms_async(recipient, body)
-                .and_then(|mut resp| resp.json::<SendMessageResponse>())
-                .map(|resp| resp)
+                .and_then(|mut resp| resp.text())
+                .and_then(|resp| {
+                    info!("response: {}", resp);
+                    let r: SendMessageResponse = serde_json::from_str(&resp).unwrap();
+                    futures::future::ok(r)
+                })
                 .then(move |r| tx.send(r).map_err(|_werr| error!("failure"))),
         ))
         .unwrap();
