@@ -29,3 +29,5 @@ address = "127.0.0.1:6379"
 
 [messagebird]
 api_key = "YU2LaAeEt1MrFUv0tIMeqXetM"
+originator = "+12124888582"
+verification_enforced = false
