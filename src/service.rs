@@ -263,7 +263,11 @@ fn generate_and_send_verification_code(client: &models::Client) -> i32 {
 
     let sms_client = Client::new();
 
-    let body = format!("Umpyre verification code: {}-{}", code / 1000, code % 1000);
+    let body = format!(
+        "Umpyre verification code: {:03}-{:03}",
+        code / 1000,
+        code % 1000
+    );
 
     let result = sms_client.send_sms(&client.phone_number, &body);
     if result.is_err() {
