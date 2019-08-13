@@ -139,6 +139,7 @@ message AuthVerifyRequest {
 message AuthVerifyResponse {
   string client_id = 1;
   bytes server_proof = 2;
+  bytes session_key = 3;
 }
 
 // Fetch public client info

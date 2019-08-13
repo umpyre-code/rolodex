@@ -448,6 +448,7 @@ impl Rolodex {
         Ok(AuthVerifyResponse {
             client_id: client.uuid.to_simple().to_string(),
             server_proof: server.verify(&request.client_proof)?.to_vec(),
+            session_key: server.get_key().to_vec(),
         })
     }
 
