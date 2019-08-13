@@ -351,11 +351,12 @@ impl Rolodex {
                 };
 
                 let server = SrpServer::<Sha3_512>::new(&user, &request.a_pub, &b, &G_2048)?;
+                let b_pub = server.get_b_pub();
 
                 Ok(proto::AuthHandshakeResponse {
                     email,
                     salt: client.password_salt,
-                    b_pub: server.get_b_pub(),
+                    b_pub,
                 })
             }
             Err(_err) => {
