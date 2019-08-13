@@ -350,7 +350,9 @@ impl Rolodex {
                     verifier: &client.password_verifier,
                 };
 
+                info!("1");
                 let server = SrpServer::<Sha256>::new(&user, &request.a_pub, &b, &G_2048)?;
+                info!("2");
                 let b_pub = server.get_b_pub();
 
                 Ok(proto::AuthHandshakeResponse {
@@ -363,7 +365,7 @@ impl Rolodex {
                 let mut b_pub = vec![0u8; 256];
                 OsRng.fill_bytes(&mut b_pub);
 
-                let mut salt = vec![0u8; 32];
+                let mut salt = vec![0u8; 64];
                 OsRng.fill_bytes(&mut salt);
 
                 Ok(proto::AuthHandshakeResponse { email, salt, b_pub })
@@ -433,7 +435,9 @@ impl Rolodex {
             verifier: &client.password_verifier,
         };
 
+        info!("3");
         let server = SrpServer::<Sha256>::new(&user, &request.a_pub, &b, &G_2048)?;
+        info!("4");
 
         let conn = self.db_writer.get().unwrap();
 
@@ -445,6 +449,7 @@ impl Rolodex {
         )?;
 
         CLIENT_AUTHED.inc();
+        info!("5");
         Ok(AuthVerifyResponse {
             client_id: client.uuid.to_simple().to_string(),
             server_proof: server.verify(&request.client_proof)?.to_vec(),
