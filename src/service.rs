@@ -316,51 +316,58 @@ impl Rolodex {
         let conn = self.db_reader.get().unwrap();
 
         // Find client_id, if it exists
-        let unique_email_address: models::UniqueEmailAddress =
-            match schema::unique_email_addresses::table
-                .filter(schema::unique_email_addresses::dsl::email_as_entered.eq(&email))
-                .first(&conn)
-            {
-                Ok(result) => result,
-                _ => return Err(RequestError::BadArguments),
-            };
+        match schema::unique_email_addresses::table
+            .filter(schema::unique_email_addresses::dsl::email_as_entered.eq(&email))
+            .first::<models::UniqueEmailAddress>(&conn)
+        {
+            Ok(unique_email_address) => {
+                let client_pk_id = unique_email_address.client_id;
 
-        let client_pk_id = unique_email_address.client_id;
+                let client: models::ClientAuth = schema::clients::table
+                    .select((
+                        schema::clients::dsl::id,
+                        schema::clients::dsl::uuid,
+                        schema::clients::dsl::password_verifier,
+                        schema::clients::dsl::password_salt,
+                    ))
+                    .filter(schema::clients::dsl::id.eq(client_pk_id))
+                    .first(&conn)?;
 
-        let client: models::ClientAuth = schema::clients::table
-            .select((
-                schema::clients::dsl::id,
-                schema::clients::dsl::uuid,
-                schema::clients::dsl::password_verifier,
-                schema::clients::dsl::password_salt,
-            ))
-            .filter(schema::clients::dsl::id.eq(client_pk_id))
-            .first(&conn)?;
+                let mut b = vec![0u8; 64];
+                OsRng.fill_bytes(&mut b);
 
-        let mut b = vec![0u8; 64];
-        OsRng.fill_bytes(&mut b);
+                let mut redis_conn = self.redis_writer.get()?;
 
-        let mut redis_conn = self.redis_writer.get()?;
+                redis_conn.set_ex(
+                    format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub)),
+                    BASE64URL_NOPAD.encode(&b),
+                    300,
+                )?;
 
-        redis_conn.set_ex(
-            format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub)),
-            BASE64URL_NOPAD.encode(&b),
-            300,
-        )?;
+                let user = UserRecord {
+                    username: email.as_bytes(),
+                    salt: &client.password_salt,
+                    verifier: &client.password_verifier,
+                };
 
-        let user = UserRecord {
-            username: email.as_bytes(),
-            salt: &client.password_salt,
-            verifier: &client.password_verifier,
-        };
+                let server = SrpServer::<Sha3_512>::new(&user, &request.a_pub, &b, &G_2048)?;
 
-        let server = SrpServer::<Sha3_512>::new(&user, &request.a_pub, &b, &G_2048)?;
+                Ok(proto::AuthHandshakeResponse {
+                    email,
+                    salt: client.password_salt,
+                    b_pub: server.get_b_pub(),
+                })
+            }
+            Err(_err) => {
+                let mut b_pub = vec![0u8; 256];
+                OsRng.fill_bytes(&mut b_pub);
 
-        Ok(proto::AuthHandshakeResponse {
-            email,
-            salt: client.password_salt,
-            b_pub: server.get_b_pub(),
-        })
+                let mut salt = vec![0u8; 32];
+                OsRng.fill_bytes(&mut salt);
+
+                Ok(proto::AuthHandshakeResponse { email, salt, b_pub })
+            }
+        }
     }
 
     /// Returns the client_id for this client if auth succeeds
