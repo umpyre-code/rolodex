@@ -377,7 +377,7 @@ impl Rolodex {
         request: &proto::AuthVerifyRequest,
     ) -> Result<proto::AuthVerifyResponse, RequestError> {
         use data_encoding::BASE64URL_NOPAD;
-        use r2d2_redis_cluster::redis_cluster_rs::{pipe, PipelineCommands};
+        use r2d2_redis_cluster::Commands;
         use rolodex_grpc::proto::AuthVerifyResponse;
         use sha3::Sha3_512;
         use srp::groups::G_2048;
@@ -389,11 +389,8 @@ impl Rolodex {
 
         let key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
 
-        let response: Option<(String,)> = pipe()
-            .get(key.clone())
-            .del(key.clone())
-            .ignore()
-            .query(&mut *redis_conn)?;
+        let response: Option<(String,)> = redis_conn.get(key.clone())?;
+        redis_conn.del(key.clone())?;
 
         let b = match response {
             Some(response) => BASE64URL_NOPAD.decode(response.0.as_bytes()).unwrap(),
