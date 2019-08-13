@@ -385,12 +385,11 @@ impl Rolodex {
 
         let email = request.email.clone();
 
-        let mut redis_conn = self.redis_writer.get()?;
+        let mut redis_conn = self.redis_reader.get()?;
 
         let key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
 
         let response: Option<(String,)> = redis_conn.get(key.clone())?;
-        redis_conn.del(key.clone())?;
 
         let b = match response {
             Some(response) => BASE64URL_NOPAD.decode(response.0.as_bytes()).unwrap(),
