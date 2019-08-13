@@ -377,6 +377,7 @@ impl Rolodex {
         request: &proto::AuthVerifyRequest,
     ) -> Result<proto::AuthVerifyResponse, RequestError> {
         use data_encoding::BASE64URL_NOPAD;
+        use r2d2_redis_cluster::redis_cluster_rs::redis::RedisResult;
         use r2d2_redis_cluster::Commands;
         use rolodex_grpc::proto::AuthVerifyResponse;
         use sha3::Sha3_512;
@@ -389,10 +390,10 @@ impl Rolodex {
 
         let key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
 
-        let response: Option<(String,)> = redis_conn.get(key.clone())?;
+        let response: RedisResult<String> = redis_conn.get(key.clone());
 
         let b = match response {
-            Some(response) => BASE64URL_NOPAD.decode(response.0.as_bytes()).unwrap(),
+            Ok(response) => BASE64URL_NOPAD.decode(response.as_bytes()).unwrap(),
             _ => {
                 return Err(RequestError::InvalidPassword {
                     err: "could not retrieve key".into(),
