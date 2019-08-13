@@ -17,7 +17,7 @@ extern crate phonenumber;
 extern crate rand;
 extern crate regex;
 extern crate reqwest;
-extern crate sha3;
+extern crate sha2;
 extern crate srp;
 extern crate tokio_udp;
 extern crate toml;

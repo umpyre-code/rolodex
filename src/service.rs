@@ -306,7 +306,7 @@ impl Rolodex {
         use r2d2_redis_cluster::Commands;
         use rand::rngs::OsRng;
         use rand::RngCore;
-        use sha3::Sha3_512;
+        use sha2::Sha256;
         use srp::groups::G_2048;
         use srp::server::{SrpServer, UserRecord};
 
@@ -350,7 +350,7 @@ impl Rolodex {
                     verifier: &client.password_verifier,
                 };
 
-                let server = SrpServer::<Sha3_512>::new(&user, &request.a_pub, &b, &G_2048)?;
+                let server = SrpServer::<Sha256>::new(&user, &request.a_pub, &b, &G_2048)?;
                 let b_pub = server.get_b_pub();
 
                 Ok(proto::AuthHandshakeResponse {
@@ -381,7 +381,7 @@ impl Rolodex {
         use r2d2_redis_cluster::redis_cluster_rs::redis::RedisResult;
         use r2d2_redis_cluster::Commands;
         use rolodex_grpc::proto::AuthVerifyResponse;
-        use sha3::Sha3_512;
+        use sha2::Sha256;
         use srp::groups::G_2048;
         use srp::server::{SrpServer, UserRecord};
 
@@ -433,7 +433,7 @@ impl Rolodex {
             verifier: &client.password_verifier,
         };
 
-        let server = SrpServer::<Sha3_512>::new(&user, &request.a_pub, &b, &G_2048)?;
+        let server = SrpServer::<Sha256>::new(&user, &request.a_pub, &b, &G_2048)?;
 
         let conn = self.db_writer.get().unwrap();
 
@@ -981,7 +981,7 @@ mod tests {
     use super::*;
     use diesel::dsl::*;
     use diesel::r2d2::{ConnectionManager, Pool};
-    use sha3::Sha3_512;
+    use sha2::Sha256;
     use srp::client::SrpClient;
     use srp::groups::G_2048;
     use std::sync::Mutex;
@@ -1074,13 +1074,10 @@ mod tests {
         password: &str,
         salt: &[u8],
         a: &[u8],
-    ) -> (SrpClient<'a, Sha3_512>, Vec<u8>) {
+    ) -> (SrpClient<'a, Sha256>, Vec<u8>) {
         use srp::client::srp_private_key;
-        let private_key = srp_private_key::<Sha3_512>(email.as_bytes(), password.as_bytes(), salt);
-        (
-            SrpClient::<Sha3_512>::new(&a, &G_2048),
-            private_key.to_vec(),
-        )
+        let private_key = srp_private_key::<Sha256>(email.as_bytes(), password.as_bytes(), salt);
+        (SrpClient::<Sha256>::new(&a, &G_2048), private_key.to_vec())
     }
 
     fn make_client(
@@ -1130,7 +1127,7 @@ mod tests {
     ) -> bool {
         let email = email.to_string();
         let a = gen_a();
-        let srp_client = SrpClient::<Sha3_512>::new(&a, &G_2048);
+        let srp_client = SrpClient::<Sha256>::new(&a, &G_2048);
 
         let auth_result = rolodex.handle_auth_handshake(&proto::AuthHandshakeRequest {
             email: email.clone(),

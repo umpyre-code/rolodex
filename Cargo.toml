@@ -26,8 +26,8 @@ rolodex-grpc = { path = "lib"}
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-sha3 = "0.8"
-srp = { git = "https://github.com/brndnmtthws/PAKEs", path = "srp/" }
+sha2 = "0.8"
+srp = { git = "https://github.com/brndnmtthws/PAKEs" }
 tokio = "0.1"
 tokio-udp = "0.1"
 toml = "0.5"
