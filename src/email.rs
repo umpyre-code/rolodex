@@ -103,6 +103,7 @@ impl Email {
         use r2d2_redis_cluster::redis_cluster_rs::Commands;
         use std::str::FromStr;
         use tokio::executor::Executor;
+        use tokio_udp::UdpSocket;
         use trust_dns::client::{ClientFuture, ClientHandle};
         use trust_dns::rr::{DNSClass, Name, RecordType};
         use trust_dns::udp::UdpClientStream;
@@ -124,7 +125,7 @@ impl Email {
         // Check domain is resolvable
         let mut exec = tokio::executor::DefaultExecutor::current();
 
-        let stream = UdpClientStream::with_timeout(
+        let stream = UdpClientStream::<UdpSocket>::with_timeout(
             ([8, 8, 8, 8], 53).into(),
             std::time::Duration::from_secs(1),
         );

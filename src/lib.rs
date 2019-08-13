@@ -19,6 +19,7 @@ extern crate regex;
 extern crate reqwest;
 extern crate sha3;
 extern crate srp;
+extern crate tokio_udp;
 extern crate toml;
 extern crate trust_dns;
 extern crate url;
