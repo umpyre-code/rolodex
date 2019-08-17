@@ -80,6 +80,8 @@ enum RequestError {
     InvalidEmail { email: String },
     #[fail(display = "invalid password: {}", err)]
     InvalidPassword { err: String },
+    #[fail(display = "unique violation")]
+    UniqueViolation,
     #[fail(display = "database error: {}", err)]
     DatabaseError { err: String },
     #[fail(display = "email domain DNS failure: {}", err)]
@@ -96,6 +98,10 @@ impl From<diesel::result::Error> for RequestError {
     fn from(err: diesel::result::Error) -> RequestError {
         match err {
             diesel::result::Error::NotFound => RequestError::NotFound,
+            diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            ) => RequestError::UniqueViolation,
             _ => RequestError::DatabaseError {
                 err: format!("{}", err),
             },
