@@ -5,6 +5,7 @@ extern crate log;
 
 extern crate env_logger;
 extern crate rolodex;
+extern crate uuid;
 
 use rolodex::config;
 use rolodex::db;
@@ -55,6 +56,28 @@ impl From<std::io::Error> for Error {
     }
 }
 
+struct ElasticSearchClient {
+    client: reqwest::Client,
+}
+
+impl ElasticSearchClient {
+    fn new() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+        }
+    }
+    fn delete(&self, client_id: &str) {
+        self.client
+            .delete(&format!(
+                "{}/client_profiles/{}",
+                config::CONFIG.elasticsearch.url,
+                client_id
+            ))
+            .send()
+            .expect("unabled to delete doc from elasticsearch");
+    }
+}
+
 fn cleanup_unverified(
     db: &rolodex::diesel::r2d2::Pool<
         rolodex::diesel::r2d2::ConnectionManager<rolodex::diesel::pg::PgConnection>,
@@ -64,8 +87,9 @@ fn cleanup_unverified(
     use rolodex::chrono::Duration;
     use rolodex::diesel::delete;
     use rolodex::diesel::prelude::*;
-    use rolodex::schema::clients::columns::{created_at, phone_sms_verified};
+    use rolodex::schema::clients::columns::{created_at, phone_sms_verified, uuid};
     use rolodex::schema::clients::table as clients;
+    use uuid::Uuid;
 
     info!("checking for unverified accounts");
 
@@ -73,12 +97,25 @@ fn cleanup_unverified(
 
     let conn = db.get().unwrap();
 
-    let count =
-        delete(clients.filter(created_at.lt(expiry_time).and(phone_sms_verified.eq(false))))
-            .execute(&conn)
-            .expect("couldn't execute query");
+    let client_ids = conn
+        .transaction::<Vec<Uuid>, diesel::result::Error, _>(|| {
+            let filter = created_at.lt(expiry_time).and(phone_sms_verified.eq(false));
 
-    info!("{} unverified accounts deleted", count)
+            let client_ids = clients.select(uuid).filter(filter).load::<Uuid>(&conn)?;
+
+            delete(clients.filter(filter)).execute(&conn)?;
+
+            Ok(client_ids)
+        })
+        .expect("transaction error");
+
+    let es_client = ElasticSearchClient::new();
+
+    client_ids
+        .iter()
+        .for_each(|client_id| es_client.delete(&client_id.to_simple().to_string()));
+
+    info!("{} unverified accounts deleted", client_ids.len())
 }
 
 pub fn main() -> Result<(), Error> {

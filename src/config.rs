@@ -12,6 +12,12 @@ pub struct Config {
     pub metrics: Metrics,
     pub redis: Redis,
     pub messagebird: MessageBird,
+    pub elasticsearch: ElasticSearch,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ElasticSearch {
+    pub url: String,
 }
 
 #[derive(Debug, Deserialize)]
