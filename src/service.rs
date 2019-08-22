@@ -38,7 +38,7 @@ lazy_static! {
     };
     static ref CLIENT_ADD_FAILED: prometheus::IntCounterVec = {
         let counter_opts =
-            prometheus::Opts::new("client_failed_failed_total", "Failed to add a client");
+            prometheus::Opts::new("client_add_failed_total", "Failed to add a client");
         let counter = prometheus::IntCounterVec::new(counter_opts, &["reason"]).unwrap();
         register(Box::new(counter.clone())).unwrap();
         counter
