@@ -20,48 +20,41 @@ pub fn make_intcounter(name: &str, description: &str) -> prometheus::IntCounter 
 
 lazy_static! {
     static ref CLIENT_ADDED: prometheus::IntCounter =
-        make_intcounter("client_added", "New client added");
-    static ref CLIENT_PHONE_VERIFIED: prometheus::IntCounter =
-        make_intcounter("client_phone_verified", "Client phone verified via SMS");
+        make_intcounter("client_added_total", "New client added");
+    static ref CLIENT_PHONE_VERIFIED: prometheus::IntCounter = make_intcounter(
+        "client_phone_verified_total",
+        "Client phone verified via SMS"
+    );
     static ref CLIENT_PHONE_VERIFY_BAD_CODE: prometheus::IntCounter = make_intcounter(
-        "client_phone_verify_bad_code",
+        "client_phone_verify_bad_code_total",
         "Client phone verification failed due to bad code"
     );
-    static ref CLIENT_UPDATE_FAILED_INVALID_PHONE_NUMBER: prometheus::IntCounter = make_intcounter(
-        "client_update_failed_invalid_phone_number",
-        "Failed to add or update a client because of an invalid phone number",
-    );
-    static ref CLIENT_UPDATE_FAILED_PHONE_NUMBER_OMITTED: prometheus::IntCounter = make_intcounter(
-        "client_update_failed_phone_number_omitted",
-        "Failed to add or update a client because phone number was not specified",
-    );
-    static ref CLIENT_ADD_FAILED_INVALID_EMAIL: prometheus::IntCounter = make_intcounter(
-        "client_add_failed_invaled_email",
-        "Failed to add a client because of a bad email address",
-    );
-    static ref CLIENT_ADD_FAILED_DUPLICATE_EMAIL: prometheus::IntCounter = make_intcounter(
-        "client_add_failed_duplicate_email",
-        "Failed to add a client because of email address is a duplicate",
-    );
-    static ref CLIENT_ADD_FAILED_BANNED_EMAIL_DOMAIN: prometheus::IntCounter = make_intcounter(
-        "client_add_failed_banned_email_domain",
-        "Failed to add a client because email address is from a banned domain",
-    );
-    static ref CLIENT_ADD_FAILED_EMAIL_DOMAIN_INVALID_SUFFIX: prometheus::IntCounter =
-        make_intcounter(
-            "client_add_failed_email_domain_invalid_suffix",
-            "Failed to add a client because email domain had an invalid suffix",
-        );
+    static ref CLIENT_UPDATE_FAILED: prometheus::IntCounterVec = {
+        let counter_opts =
+            prometheus::Opts::new("client_update_failed_total", "Failed to update a client");
+        let counter = prometheus::IntCounterVec::new(counter_opts, &["reason"]).unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
+    static ref CLIENT_ADD_FAILED: prometheus::IntCounterVec = {
+        let counter_opts =
+            prometheus::Opts::new("client_failed_failed_total", "Failed to add a client");
+        let counter = prometheus::IntCounterVec::new(counter_opts, &["reason"]).unwrap();
+        register(Box::new(counter.clone())).unwrap();
+        counter
+    };
     static ref CLIENT_AUTHED: prometheus::IntCounter =
-        make_intcounter("client_authed", "Client authenticated successfully");
+        make_intcounter("client_authed_total", "Client authenticated successfully");
     static ref CLIENT_UPDATED: prometheus::IntCounter =
-        make_intcounter("client_updated", "Client account data updated");
+        make_intcounter("client_updated_total", "Client account data updated");
     static ref CLIENT_UPDATED_PASSWORD: prometheus::IntCounter =
-        make_intcounter("client_updated_password", "Client password updated");
+        make_intcounter("client_updated_password_total", "Client password updated");
     static ref CLIENT_UPDATED_EMAIL: prometheus::IntCounter =
-        make_intcounter("client_updated_email", "Client email address updated");
-    static ref CLIENT_UPDATED_PHONE_NUMBER: prometheus::IntCounter =
-        make_intcounter("client_updated_phone_number", "Client phone number updated");
+        make_intcounter("client_updated_email_total", "Client email address updated");
+    static ref CLIENT_UPDATED_PHONE_NUMBER: prometheus::IntCounter = make_intcounter(
+        "client_updated_phone_number_total",
+        "Client phone number updated"
+    );
 }
 
 #[derive(Clone)]
@@ -143,18 +136,26 @@ impl From<srp::types::SrpAuthError> for RequestError {
 
 impl From<email::EmailError> for RequestError {
     fn from(err: email::EmailError) -> RequestError {
-        CLIENT_ADD_FAILED_INVALID_EMAIL.inc();
+        CLIENT_ADD_FAILED
+            .with_label_values(&["invalid email"])
+            .inc();
         match err {
             email::EmailError::BadFormat { email } => {
-                CLIENT_ADD_FAILED_INVALID_EMAIL.inc();
+                CLIENT_ADD_FAILED
+                    .with_label_values(&["invalid email"])
+                    .inc();
                 RequestError::InvalidEmail { email }
             }
             email::EmailError::BannedDomain { email } => {
-                CLIENT_ADD_FAILED_BANNED_EMAIL_DOMAIN.inc();
+                CLIENT_ADD_FAILED
+                    .with_label_values(&["banned email domain"])
+                    .inc();
                 RequestError::InvalidEmail { email }
             }
             email::EmailError::InvalidSuffix { email } => {
-                CLIENT_ADD_FAILED_EMAIL_DOMAIN_INVALID_SUFFIX.inc();
+                CLIENT_ADD_FAILED
+                    .with_label_values(&["invalid suffix"])
+                    .inc();
                 RequestError::InvalidEmail { email }
             }
             email::EmailError::DatabaseError { err } => RequestError::DatabaseError { err },
@@ -244,7 +245,9 @@ fn validate_phone_number(
         let number = phonenumber::parse(Some(country), &phone_number.national_number)?;
         let phonenumber_valid = number.is_valid();
         if !phonenumber_valid {
-            CLIENT_UPDATE_FAILED_INVALID_PHONE_NUMBER.inc();
+            CLIENT_UPDATE_FAILED
+                .with_label_values(&["invalid phone number"])
+                .inc();
             return Err(RequestError::InvalidPhoneNumber {
                 err: number.to_string(),
             });
@@ -254,7 +257,9 @@ fn validate_phone_number(
             .mode(phonenumber::Mode::International)
             .to_string())
     } else {
-        CLIENT_UPDATE_FAILED_PHONE_NUMBER_OMITTED.inc();
+        CLIENT_UPDATE_FAILED
+            .with_label_values(&["phone number omitted"])
+            .inc();
         Err(RequestError::InvalidPhoneNumber {
             err: "no phone number specified".to_string(),
         })
