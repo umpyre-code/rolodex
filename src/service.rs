@@ -200,6 +200,7 @@ impl From<models::Client> for proto::Client {
             signing_public_key: client.signing_public_key,
             joined: client.created_at.timestamp(),
             phone_sms_verified: client.phone_sms_verified,
+            ral: client.ral,
         }
     }
 }
@@ -583,6 +584,7 @@ impl Rolodex {
             handle_lowercase: sanitizers::handle(&client.handle)
                 .to_lowercase()
                 .into_option(),
+            ral: client.ral,
         };
 
         let conn = self.db_writer.get().unwrap();
@@ -613,14 +615,41 @@ impl Rolodex {
 
     // Updates the underlying client model
     #[instrument(INFO)]
-    fn handle_update_client_password(
+    fn handle_update_client_ral(
         &self,
-        request: &proto::UpdateClientPasswordRequest,
-    ) -> Result<proto::UpdateClientPasswordResponse, RequestError> {
+        request: &proto::UpdateClientRalRequest,
+    ) -> Result<proto::UpdateClientResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
 
         let conn = self.db_writer.get().unwrap();
-        conn.transaction::<_, Error, _>(|| {
+        let client = conn.transaction::<models::Client, Error, _>(|| {
+            let updated_row: models::Client = diesel::update(
+                schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
+            )
+            .set((schema::clients::ral.eq(request.ral),))
+            .get_result(&conn)?;
+
+            Ok(updated_row)
+        })?;
+
+        CLIENT_UPDATED_PASSWORD.inc();
+
+        Ok(proto::UpdateClientResponse {
+            result: proto::Result::Success as i32,
+            client: Some(client.into()),
+        })
+    }
+
+    // Updates the underlying client model
+    #[instrument(INFO)]
+    fn handle_update_client_password(
+        &self,
+        request: &proto::UpdateClientPasswordRequest,
+    ) -> Result<proto::UpdateClientResponse, RequestError> {
+        let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
+
+        let conn = self.db_writer.get().unwrap();
+        let client = conn.transaction::<models::Client, Error, _>(|| {
             let updated_row: models::Client = diesel::update(
                 schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
             )
@@ -637,13 +666,14 @@ impl Rolodex {
                 &conn,
             )?;
 
-            Ok(())
+            Ok(updated_row)
         })?;
 
         CLIENT_UPDATED_PASSWORD.inc();
 
-        Ok(proto::UpdateClientPasswordResponse {
+        Ok(proto::UpdateClientResponse {
             result: proto::Result::Success as i32,
+            client: Some(client.into()),
         })
     }
 
@@ -652,7 +682,7 @@ impl Rolodex {
     fn handle_update_client_email(
         &self,
         request: &proto::UpdateClientEmailRequest,
-    ) -> Result<proto::UpdateClientEmailResponse, RequestError> {
+    ) -> Result<proto::UpdateClientResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
 
         let email: Email = request.email.to_lowercase().parse()?;
@@ -663,7 +693,7 @@ impl Rolodex {
         let email_without_labels = email.email_without_labels.clone();
 
         let conn = self.db_writer.get().unwrap();
-        conn.transaction::<_, Error, _>(|| {
+        let client = conn.transaction::<models::Client, Error, _>(|| {
             let client: models::Client = schema::clients::table
                 .filter(schema::clients::dsl::uuid.eq(&request_uuid))
                 .first(&conn)?;
@@ -693,13 +723,18 @@ impl Rolodex {
                 &conn,
             )?;
 
-            Ok(())
+            let client: models::Client = schema::clients::table
+                .filter(schema::clients::dsl::uuid.eq(&request_uuid))
+                .first(&conn)?;
+
+            Ok(client)
         })?;
 
         CLIENT_UPDATED_EMAIL.inc();
 
-        Ok(proto::UpdateClientEmailResponse {
+        Ok(proto::UpdateClientResponse {
             result: proto::Result::Success as i32,
+            client: Some(client.into()),
         })
     }
 
@@ -708,11 +743,11 @@ impl Rolodex {
     fn handle_update_client_phone_number(
         &self,
         request: &proto::UpdateClientPhoneNumberRequest,
-    ) -> Result<proto::UpdateClientPhoneNumberResponse, RequestError> {
+    ) -> Result<proto::UpdateClientResponse, RequestError> {
         let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
 
         let conn = self.db_writer.get().unwrap();
-        conn.transaction::<_, Error, _>(|| {
+        let client = conn.transaction::<models::Client, Error, _>(|| {
             let updated_row: models::Client = diesel::update(
                 schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
             )
@@ -731,8 +766,9 @@ impl Rolodex {
 
         CLIENT_UPDATED_PHONE_NUMBER.inc();
 
-        Ok(proto::UpdateClientPhoneNumberResponse {
+        Ok(proto::UpdateClientResponse {
             result: proto::Result::Success as i32,
+            client: Some(client.into()),
         })
     }
 
@@ -895,8 +931,24 @@ impl proto::server::Rolodex for Rolodex {
             .into_future()
     }
 
+    type UpdateClientRalFuture = future::FutureResult<
+        Response<proto::UpdateClientResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn update_client_ral(
+        &mut self,
+        request: Request<proto::UpdateClientRalRequest>,
+    ) -> Self::UpdateClientRalFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_update_client_ral(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
     type UpdateClientPasswordFuture = future::FutureResult<
-        Response<proto::UpdateClientPasswordResponse>,
+        Response<proto::UpdateClientResponse>,
         rolodex_grpc::tower_grpc::Status,
     >;
     fn update_client_password(
@@ -912,7 +964,7 @@ impl proto::server::Rolodex for Rolodex {
     }
 
     type UpdateClientEmailFuture = future::FutureResult<
-        Response<proto::UpdateClientEmailResponse>,
+        Response<proto::UpdateClientResponse>,
         rolodex_grpc::tower_grpc::Status,
     >;
     fn update_client_email(
@@ -928,7 +980,7 @@ impl proto::server::Rolodex for Rolodex {
     }
 
     type UpdateClientPhoneNumberFuture = future::FutureResult<
-        Response<proto::UpdateClientPhoneNumberResponse>,
+        Response<proto::UpdateClientResponse>,
         rolodex_grpc::tower_grpc::Status,
     >;
     fn update_client_phone_number(

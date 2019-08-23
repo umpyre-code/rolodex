@@ -33,6 +33,7 @@ table! {
         handle -> Nullable<Text>,
         handle_lowercase -> Nullable<Text>,
         phone_sms_verified -> Bool,
+        ral -> Int4,
     }
 }
 

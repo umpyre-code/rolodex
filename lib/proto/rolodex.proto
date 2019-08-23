@@ -19,17 +19,20 @@ service Rolodex {
   // Update a client's account details
   rpc UpdateClient(UpdateClientRequest) returns (UpdateClientResponse);
 
+  // Update a client's ral
+  rpc UpdateClientRal(UpdateClientRalRequest) returns (UpdateClientResponse);
+
   // Update a client's password hash
   rpc UpdateClientPassword(UpdateClientPasswordRequest)
-      returns (UpdateClientPasswordResponse);
+      returns (UpdateClientResponse);
 
   // Update a client's contact email address
   rpc UpdateClientEmail(UpdateClientEmailRequest)
-      returns (UpdateClientEmailResponse);
+      returns (UpdateClientResponse);
 
   // Update a client's contact phone number
   rpc UpdateClientPhoneNumber(UpdateClientPhoneNumberRequest)
-      returns (UpdateClientPhoneNumberResponse);
+      returns (UpdateClientResponse);
 
   // Verify phone number
   rpc VerifyPhone(VerifyPhoneRequest) returns (VerifyPhoneResponse);
@@ -57,6 +60,11 @@ message UpdateClientResponse {
   Client client = 2;
 }
 
+message UpdateClientRalRequest {
+  string client_id = 1;
+  int32 ral = 2;
+}
+
 message SendVerificationCodeRequest { string client_id = 1; }
 message SendVerificationCodeResponse {}
 
@@ -76,21 +84,18 @@ message UpdateClientPasswordRequest {
   bytes password_salt = 3;
   Location location = 4;
 }
-message UpdateClientPasswordResponse { Result result = 1; }
 
 message UpdateClientEmailRequest {
   string client_id = 1;
   string email = 2;
   Location location = 3;
 }
-message UpdateClientEmailResponse { Result result = 1; }
 
 message UpdateClientPhoneNumberRequest {
   string client_id = 1;
   PhoneNumber phone_number = 2;
   Location location = 3;
 }
-message UpdateClientPhoneNumberResponse { Result result = 1; }
 
 // The public representation of a client
 message Client {
@@ -102,6 +107,7 @@ message Client {
   string profile = 6;
   int64 joined = 7;
   bool phone_sms_verified = 8;
+  int32 ral = 9;
 }
 
 // For creating new client accounts only
