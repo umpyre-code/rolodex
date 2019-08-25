@@ -5,6 +5,10 @@ pub fn handle(value: &str) -> String {
     let re = Regex::new(r"[^a-zA-Z0-9_.-]").unwrap();
     let mut value = re.replace_all(&value, "").to_string();
     value.truncate(100);
+    // handles should have at least 3 characters
+    if value.len() < 3 {
+        return "".into();
+    }
     value
 }
 
