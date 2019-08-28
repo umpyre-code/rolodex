@@ -40,3 +40,7 @@ trust-dns = { version = "0.17", default-features = false, features = ["dns-over-
 url = "2"
 uuid = "0.7"
 yansi = "0.5"
+
+[patch.crates-io]
+prometheus = { git = "https://github.com/brndnmtthws/rust-prometheus.git", branch = "superbranch" }
+
