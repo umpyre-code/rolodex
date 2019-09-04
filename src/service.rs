@@ -585,8 +585,6 @@ impl Rolodex {
             handle_lowercase: sanitizers::handle(&client.handle)
                 .to_lowercase()
                 .into_option(),
-            ral: client.ral,
-            avatar_version: client.avatar_version,
         };
 
         let conn = self.db_writer.get().unwrap();

@@ -55,8 +55,6 @@ pub struct UpdateClient {
     pub profile: Option<String>,
     pub handle: Option<String>,
     pub handle_lowercase: Option<String>,
-    pub ral: i32,
-    pub avatar_version: i32,
 }
 
 #[derive(Queryable, Associations, Identifiable)]
