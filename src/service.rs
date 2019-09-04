@@ -201,6 +201,7 @@ impl From<models::Client> for proto::Client {
             joined: client.created_at.timestamp(),
             phone_sms_verified: client.phone_sms_verified,
             ral: client.ral,
+            avatar_version: client.avatar_version,
         }
     }
 }
@@ -585,6 +586,7 @@ impl Rolodex {
                 .to_lowercase()
                 .into_option(),
             ral: client.ral,
+            avatar_version: client.avatar_version,
         };
 
         let conn = self.db_writer.get().unwrap();
@@ -627,6 +629,34 @@ impl Rolodex {
                 schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
             )
             .set((schema::clients::ral.eq(request.ral),))
+            .get_result(&conn)?;
+
+            Ok(updated_row)
+        })?;
+
+        CLIENT_UPDATED_PASSWORD.inc();
+
+        Ok(proto::UpdateClientResponse {
+            result: proto::Result::Success as i32,
+            client: Some(client.into()),
+        })
+    }
+
+    // Increment a client's avatar version
+    #[instrument(INFO)]
+    fn handle_increment_client_avatar(
+        &self,
+        request: &proto::IncrementClientAvatarRequest,
+    ) -> Result<proto::UpdateClientResponse, RequestError> {
+        let request_uuid = uuid::Uuid::parse_str(&request.client_id)?;
+
+        let conn = self.db_writer.get().unwrap();
+        let client = conn.transaction::<models::Client, Error, _>(|| {
+            let updated_row: models::Client = diesel::update(
+                schema::clients::table.filter(schema::clients::uuid.eq(request_uuid)),
+            )
+            .set((schema::clients::avatar_version
+                .eq(schema::clients::avatar_version + request.increment_by),))
             .get_result(&conn)?;
 
             Ok(updated_row)
@@ -942,6 +972,22 @@ impl proto::server::Rolodex for Rolodex {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_update_client_ral(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
+    type IncrementClientAvatarFuture = future::FutureResult<
+        Response<proto::UpdateClientResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn increment_client_avatar(
+        &mut self,
+        request: Request<proto::IncrementClientAvatarRequest>,
+    ) -> Self::IncrementClientAvatarFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_increment_client_avatar(request.get_ref())
             .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()

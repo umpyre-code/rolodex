@@ -34,6 +34,7 @@ table! {
         handle_lowercase -> Nullable<Text>,
         phone_sms_verified -> Bool,
         ral -> Int4,
+        avatar_version -> Int4,
     }
 }
 

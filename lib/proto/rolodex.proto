@@ -22,6 +22,10 @@ service Rolodex {
   // Update a client's ral
   rpc UpdateClientRal(UpdateClientRalRequest) returns (UpdateClientResponse);
 
+  // Increment a client's avatar version
+  rpc IncrementClientAvatar(IncrementClientAvatarRequest)
+      returns (UpdateClientResponse);
+
   // Update a client's password hash
   rpc UpdateClientPassword(UpdateClientPasswordRequest)
       returns (UpdateClientResponse);
@@ -63,6 +67,11 @@ message UpdateClientResponse {
 message UpdateClientRalRequest {
   string client_id = 1;
   int32 ral = 2;
+}
+
+message IncrementClientAvatarRequest {
+  string client_id = 1;
+  int32 increment_by = 2;
 }
 
 message SendVerificationCodeRequest { string client_id = 1; }
@@ -108,6 +117,7 @@ message Client {
   int64 joined = 7;
   bool phone_sms_verified = 8;
   int32 ral = 9;
+  int32 avatar_version = 10;
 }
 
 // For creating new client accounts only

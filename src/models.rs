@@ -22,6 +22,7 @@ pub struct Client {
     pub handle_lowercase: Option<String>,
     pub phone_sms_verified: bool,
     pub ral: i32,
+    pub avatar_version: i32,
 }
 
 #[derive(Insertable)]
@@ -55,6 +56,7 @@ pub struct UpdateClient {
     pub handle: Option<String>,
     pub handle_lowercase: Option<String>,
     pub ral: i32,
+    pub avatar_version: i32,
 }
 
 #[derive(Queryable, Associations, Identifiable)]
