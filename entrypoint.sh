@@ -5,4 +5,4 @@ set -x
 
 envsubst < /etc/config/Rolodex.toml.in > Rolodex.toml
 
-exec rolodex "$@"
+exec "$@"
