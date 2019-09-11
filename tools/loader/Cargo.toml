@@ -1,0 +1,13 @@
+[package]
+name = "loader"
+version = "0.1.0"
+authors = ["Brenden Matthews <brenden@diddyinc.com>"]
+edition = "2018"
+
+[dependencies]
+data-encoding = "2"
+env_logger = "0.6"
+failure = "0.1"
+log = "0.4"
+redis_cluster_rs = "0.1"
+reqwest = "0.9"

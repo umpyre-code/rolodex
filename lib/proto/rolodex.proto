@@ -1,0 +1,231 @@
+syntax = "proto3";
+
+package rolodex;
+option java_package = "rolodex";
+
+service Rolodex {
+  // Add a new client account
+  rpc AddClient(NewClientRequest) returns (NewClientResponse);
+
+  // Authenticate a client: handshake
+  rpc AuthHandshake(AuthHandshakeRequest) returns (AuthHandshakeResponse);
+
+  // Authenticate a client: verify
+  rpc AuthVerify(AuthVerifyRequest) returns (AuthVerifyResponse);
+
+  // Get public client model
+  rpc GetClient(GetClientRequest) returns (GetClientResponse);
+
+  // Get a client's contact email address
+  rpc GetClientEmail(GetClientEmailRequest) returns (GetClientEmailResponse);
+
+  // Update a client's account details
+  rpc UpdateClient(UpdateClientRequest) returns (UpdateClientResponse);
+
+  // Update a client's ral
+  rpc UpdateClientRal(UpdateClientRalRequest) returns (UpdateClientResponse);
+
+  // Increment a client's avatar version
+  rpc IncrementClientAvatar(IncrementClientAvatarRequest)
+      returns (UpdateClientResponse);
+
+  // Update a client's password hash
+  rpc UpdateClientPassword(UpdateClientPasswordRequest)
+      returns (UpdateClientResponse);
+
+  // Update a client's contact email address
+  rpc UpdateClientEmail(UpdateClientEmailRequest)
+      returns (UpdateClientResponse);
+
+  // Update a client's contact phone number
+  rpc UpdateClientPhoneNumber(UpdateClientPhoneNumberRequest)
+      returns (UpdateClientResponse);
+
+  // Verify phone number
+  rpc VerifyPhone(VerifyPhoneRequest) returns (VerifyPhoneResponse);
+
+  // Send a new verification code
+  rpc SendVerificationCode(SendVerificationCodeRequest)
+      returns (SendVerificationCodeResponse);
+
+  // Fetch client prefs
+  rpc GetPrefs(GetPrefsRequest) returns (GetPrefsResponse);
+
+  // Update client prefs
+  rpc UpdatePrefs(UpdatePrefsRequest) returns (UpdatePrefsResponse);
+
+  // Health check endpoint
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+enum Result {
+  SUCCESS = 0;
+  FAILURE = 1;
+  UNAUTHORIZED = 2;
+}
+
+message Prefs {
+  string email_notifications = 1;
+}
+
+message GetPrefsRequest {
+  string client_id = 1;
+}
+message GetPrefsResponse {
+  string client_id = 1;
+  Prefs prefs = 2;
+}
+
+message UpdatePrefsRequest {
+  string client_id = 1;
+  Prefs prefs = 2;
+}
+message UpdatePrefsResponse {
+  string client_id = 1;
+  Prefs prefs = 2;
+}
+
+message UpdateClientRequest {
+  Client client = 1;
+  Location location = 2;
+}
+message UpdateClientResponse {
+  Result result = 1;
+  Client client = 2;
+}
+
+message UpdateClientRalRequest {
+  string client_id = 1;
+  int32 ral = 2;
+}
+
+message IncrementClientAvatarRequest {
+  string client_id = 1;
+  int32 increment_by = 2;
+}
+
+message SendVerificationCodeRequest { string client_id = 1; }
+message SendVerificationCodeResponse {}
+
+message VerifyPhoneRequest {
+  string client_id = 1;
+  int32 code = 2;
+  Location location = 3;
+}
+message VerifyPhoneResponse {
+  Result result = 1;
+  Client client = 2;
+}
+
+message UpdateClientPasswordRequest {
+  string client_id = 1;
+  bytes password_verifier = 2;
+  bytes password_salt = 3;
+  Location location = 4;
+}
+
+message UpdateClientEmailRequest {
+  string client_id = 1;
+  string email = 2;
+  Location location = 3;
+}
+
+message UpdateClientPhoneNumberRequest {
+  string client_id = 1;
+  PhoneNumber phone_number = 2;
+  Location location = 3;
+}
+
+// The public representation of a client
+message Client {
+  string client_id = 1;
+  string full_name = 2;
+  string box_public_key = 3;
+  string signing_public_key = 4;
+  string handle = 5;
+  string profile = 6;
+  int64 joined = 7;
+  bool phone_sms_verified = 8;
+  int32 ral = 9;
+  int32 avatar_version = 10;
+}
+
+// For creating new client accounts only
+message NewClientRequest {
+  string full_name = 1;
+  bytes password_verifier = 2;
+  bytes password_salt = 3;
+  string email = 4;
+  PhoneNumber phone_number = 5;
+  string box_public_key = 6;
+  string signing_public_key = 7;
+  Location location = 8;
+}
+message NewClientResponse { string client_id = 1; }
+
+// Authenticate a client: handshake message
+message AuthHandshakeRequest {
+  string email = 1;
+  bytes a_pub = 2;
+  Location location = 3;
+}
+message AuthHandshakeResponse {
+  string email = 1;
+  bytes salt = 2;
+  bytes b_pub = 3;
+}
+
+// Authenticate a client: handshake message
+message AuthVerifyRequest {
+  string email = 1;
+  bytes a_pub = 2;
+  bytes client_proof = 3;
+  Location location = 4;
+}
+message AuthVerifyResponse {
+  string client_id = 1;
+  bytes server_proof = 2;
+  bytes session_key = 3;
+}
+
+// Fetch public client info
+message GetClientRequest {
+  string calling_client_id = 1;
+  oneof id {
+    string client_id = 2;
+    string handle = 3;
+  }
+}
+message GetClientResponse { Client client = 1; }
+
+// Fetch client email info
+message GetClientEmailRequest { string client_id = 1; }
+message GetClientEmailResponse {
+  string client_id = 1;
+  string email_as_entered = 2;
+  string email_without_labels = 3;
+}
+
+message PhoneNumber {
+  string country_code = 1; // Two-letter country (CA, US, UK, ...)
+  string national_number = 2;
+}
+
+// A message representing IP-based geolocation for the API request
+message Location {
+  string ip_address = 1;
+  string region = 2;
+  string region_subdivision = 3;
+  string city = 4;
+}
+
+message HealthCheckRequest { string service = 1; }
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  ServingStatus status = 1;
+}
