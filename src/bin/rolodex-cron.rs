@@ -93,7 +93,7 @@ fn cleanup_unverified(
 
     info!("checking for unverified accounts");
 
-    let expiry_time = (Utc::now() - Duration::hours(24)).naive_utc();
+    let expiry_time = (Utc::now() - Duration::hours(1)).naive_utc();
 
     let conn = db.get().unwrap();
 
