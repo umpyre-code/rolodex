@@ -64,13 +64,9 @@ enum Result {
   UNAUTHORIZED = 2;
 }
 
-message Prefs {
-  string email_notifications = 1;
-}
+message Prefs { string email_notifications = 1; }
 
-message GetPrefsRequest {
-  string client_id = 1;
-}
+message GetPrefsRequest { string client_id = 1; }
 message GetPrefsResponse {
   string client_id = 1;
   Prefs prefs = 2;

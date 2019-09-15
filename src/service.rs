@@ -833,6 +833,24 @@ impl Rolodex {
             .set(schema::clients::phone_sms_verified.eq(true))
             .get_result(&conn)?;
 
+            // Delete old phone number
+            diesel::delete(
+                schema::phone_numbers::table
+                    .filter(schema::phone_numbers::client_id.eq(updated_row.id)),
+            )
+            .execute(&conn)?;
+
+            let new_phone_number = models::NewPhoneNumber {
+                client_id: updated_row.id,
+                number: updated_row.phone_number.clone(),
+                country_code: updated_row.phone_country_code.clone(),
+            };
+
+            // Insert new phone number
+            diesel::insert_into(schema::phone_numbers::table)
+                .values(&new_phone_number)
+                .execute(&conn)?;
+
             insert_client_action(
                 updated_row.id,
                 ClientAccountAction::PhoneNumberUpdated,
@@ -882,6 +900,17 @@ impl Rolodex {
                     diesel::update(clients.filter(client_uuid.eq(request_uuid)))
                         .set(phone_sms_verified.eq(true))
                         .get_result(&conn)?;
+
+                let new_phone_number = models::NewPhoneNumber {
+                    client_id: updated_row.id,
+                    number: updated_row.phone_number.clone(),
+                    country_code: updated_row.phone_country_code.clone(),
+                };
+
+                // Insert new phone number
+                diesel::insert_into(schema::phone_numbers::table)
+                    .values(&new_phone_number)
+                    .execute(&conn)?;
 
                 insert_client_action(
                     updated_row.id,

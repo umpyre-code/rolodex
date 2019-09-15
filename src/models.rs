@@ -135,3 +135,24 @@ pub struct NewClientPrefs {
 pub struct UpdateClientPrefs {
     pub email_notifications: EmailNotificationsPref,
 }
+
+#[derive(AsChangeset, Insertable, Associations)]
+#[table_name = "phone_numbers"]
+#[belongs_to(Client)]
+pub struct NewPhoneNumber {
+    pub client_id: i64,
+    pub number: String,
+    pub country_code: String,
+}
+
+#[derive(Queryable, Associations, Identifiable)]
+#[table_name = "phone_numbers"]
+#[belongs_to(Client)]
+pub struct PhoneNumber {
+    pub id: i64,
+    pub client_id: i64,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub number: String,
+    pub country_code: String,
+}

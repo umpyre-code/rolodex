@@ -43,6 +43,20 @@ table! {
     use diesel::sql_types::*;
     use crate::sql_types::*;
 
+    phone_numbers (id) {
+        id -> Int8,
+        client_id -> Int8,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        number -> Text,
+        country_code -> Text,
+    }
+}
+
+table! {
+    use diesel::sql_types::*;
+    use crate::sql_types::*;
+
     phone_verification_codes (id) {
         id -> Int8,
         client_id -> Int8,
@@ -80,6 +94,7 @@ table! {
 }
 
 joinable!(client_account_actions -> clients (client_id));
+joinable!(phone_numbers -> clients (client_id));
 joinable!(phone_verification_codes -> clients (client_id));
 joinable!(prefs -> clients (client_id));
 joinable!(unique_email_addresses -> clients (client_id));
@@ -87,6 +102,7 @@ joinable!(unique_email_addresses -> clients (client_id));
 allow_tables_to_appear_in_same_query!(
     client_account_actions,
     clients,
+    phone_numbers,
     phone_verification_codes,
     prefs,
     unique_email_addresses,
