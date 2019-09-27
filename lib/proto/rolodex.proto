@@ -144,6 +144,7 @@ message Client {
   bool phone_sms_verified = 8;
   int32 ral = 9;
   int32 avatar_version = 10;
+  string referred_by = 11;
 }
 
 // For creating new client accounts only

@@ -206,6 +206,10 @@ impl From<models::Client> for proto::Client {
             phone_sms_verified: client.phone_sms_verified,
             ral: client.ral,
             avatar_version: client.avatar_version,
+            referred_by: match client.referred_by {
+                Some(uuid) => uuid.to_simple().to_string(),
+                None => "".into(),
+            }
         }
     }
 }
