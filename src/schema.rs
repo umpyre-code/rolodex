@@ -36,6 +36,7 @@ table! {
         ral -> Int4,
         avatar_version -> Int4,
         phone_country_code -> Text,
+        referred_by -> Nullable<Uuid>,
     }
 }
 

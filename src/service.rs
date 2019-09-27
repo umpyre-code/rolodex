@@ -185,6 +185,10 @@ impl From<models::Client> for proto::NewClientResponse {
     fn from(client: models::Client) -> proto::NewClientResponse {
         proto::NewClientResponse {
             client_id: client.uuid.to_simple().to_string(),
+            referred_by: match client.referred_by {
+                Some(uuid) => uuid.to_simple().to_string(),
+                None => "".into(),
+            },
         }
     }
 }
@@ -505,6 +509,26 @@ impl Rolodex {
         let email_as_entered = email.email_as_entered.clone();
         let email_without_labels = email.email_without_labels.clone();
 
+        let referred_by = if !request.referred_by.is_empty() {
+            let conn = self.db_reader.get().unwrap();
+            // check account exists
+            match uuid::Uuid::parse_str(&request.referred_by) {
+                Ok(ref_uuid) => {
+                    let ref_client: Result<models::Client, diesel::result::Error> =
+                        schema::clients::table
+                            .filter(schema::clients::dsl::uuid.eq(&ref_uuid))
+                            .first(&conn);
+                    match ref_client {
+                        Ok(_) => Some(ref_uuid),
+                        Err(_) => None,
+                    }
+                }
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
         let new_client = models::NewClient {
             full_name: sanitizers::full_name(&request.full_name),
             password_verifier: request.password_verifier.clone(),
@@ -513,6 +537,7 @@ impl Rolodex {
             box_public_key: sanitizers::public_key(&request.box_public_key),
             signing_public_key: sanitizers::public_key(&request.signing_public_key),
             phone_country_code: request.phone_number.as_ref().unwrap().country_code.clone(),
+            referred_by,
         };
 
         let conn = self.db_writer.get().unwrap();

@@ -64,13 +64,9 @@ enum Result {
   UNAUTHORIZED = 2;
 }
 
-message Prefs {
-  string email_notifications = 1;
-}
+message Prefs { string email_notifications = 1; }
 
-message GetPrefsRequest {
-  string client_id = 1;
-}
+message GetPrefsRequest { string client_id = 1; }
 message GetPrefsResponse {
   string client_id = 1;
   Prefs prefs = 2;
@@ -160,8 +156,12 @@ message NewClientRequest {
   string box_public_key = 6;
   string signing_public_key = 7;
   Location location = 8;
+  string referred_by = 9;
 }
-message NewClientResponse { string client_id = 1; }
+message NewClientResponse {
+  string client_id = 1;
+  string referred_by = 2;
+}
 
 // Authenticate a client: handshake message
 message AuthHandshakeRequest {

@@ -24,6 +24,7 @@ pub struct Client {
     pub ral: i32,
     pub avatar_version: i32,
     pub phone_country_code: String,
+    pub referred_by: Option<uuid::Uuid>,
 }
 
 #[derive(Insertable)]
@@ -36,6 +37,7 @@ pub struct NewClient {
     pub box_public_key: String,
     pub signing_public_key: String,
     pub phone_country_code: String,
+    pub referred_by: Option<uuid::Uuid>,
 }
 
 // Struct used for client auth flow
