@@ -209,7 +209,7 @@ impl From<models::Client> for proto::Client {
             referred_by: match client.referred_by {
                 Some(uuid) => uuid.to_simple().to_string(),
                 None => "".into(),
-            }
+            },
         }
     }
 }
@@ -409,7 +409,7 @@ impl Rolodex {
                 let mut b_pub = vec![0u8; 256];
                 OsRng.fill_bytes(&mut b_pub);
 
-                let mut salt = vec![0u8; 64];
+                let mut salt = vec![0u8; 16];
                 OsRng.fill_bytes(&mut salt);
 
                 Ok(proto::AuthHandshakeResponse { email, salt, b_pub })
@@ -504,6 +504,8 @@ impl Rolodex {
         &self,
         request: &proto::NewClientRequest,
     ) -> Result<proto::NewClientResponse, RequestError> {
+        use std::{thread, time};
+
         let phone_number = validate_phone_number(&request.phone_number)?;
 
         let email: Email = request.email.to_lowercase().parse()?;
@@ -579,6 +581,23 @@ impl Rolodex {
 
             Ok(client)
         })?;
+
+        // lastly, wait until new client is visible on read replica(s) before returning.
+        let mut client_replicated = false;
+        while !client_replicated {
+            let conn = self.db_reader.get().unwrap();
+            let new_client: Result<models::Client, Error> = schema::clients::table
+                .filter(schema::clients::uuid.eq(client.uuid))
+                .first(&conn);
+            client_replicated = match new_client {
+                Ok(_) => true,
+                Err(_) => {
+                    let fifty_millis = time::Duration::from_millis(50);
+                    thread::sleep(fifty_millis);
+                    false
+                }
+            };
+        }
 
         CLIENT_ADDED.inc();
         Ok(client.into())
