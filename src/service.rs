@@ -378,12 +378,14 @@ impl Rolodex {
         request: &proto::AuthHandshakeRequest,
     ) -> Result<proto::AuthHandshakeResponse, RequestError> {
         use data_encoding::BASE64URL_NOPAD;
+        use r2d2_redis_cluster::redis_cluster_rs::redis::RedisResult;
         use r2d2_redis_cluster::Commands;
         use rand::rngs::OsRng;
         use rand::RngCore;
         use sha2::Sha256;
         use srp::groups::G_2048;
         use srp::server::{SrpServer, UserRecord};
+        use std::{thread, time};
 
         let email = request.email.clone();
 
@@ -413,11 +415,24 @@ impl Rolodex {
 
                 let mut redis_conn = self.redis_writer.get()?;
 
-                redis_conn.set_ex(
-                    format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub)),
-                    BASE64URL_NOPAD.encode(&b),
-                    300,
-                )?;
+                let auth_key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
+                redis_conn.set_ex(auth_key.clone(), BASE64URL_NOPAD.encode(&b), 300)?;
+
+                // wait for redis to sync up
+                let mut key_replicated = false;
+                while !key_replicated {
+                    let mut redis_conn = self.redis_reader.get()?;
+                    let response: RedisResult<String> = redis_conn.get(auth_key.clone());
+
+                    key_replicated = match response {
+                        Ok(_) => true,
+                        Err(_) => {
+                            let fifty_millis = time::Duration::from_millis(50);
+                            thread::sleep(fifty_millis);
+                            false
+                        }
+                    };
+                }
 
                 let user = UserRecord {
                     username: email.as_bytes(),
