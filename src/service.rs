@@ -214,6 +214,35 @@ impl From<models::Client> for proto::Client {
     }
 }
 
+impl From<&models::Client> for proto::Client {
+    fn from(client: &models::Client) -> proto::Client {
+        proto::Client {
+            box_public_key: client.box_public_key.clone(),
+            client_id: client.uuid.to_simple().to_string(),
+            full_name: client.full_name.clone(),
+            handle: client
+                .handle
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| String::from("")),
+            profile: client
+                .profile
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| String::from("")),
+            signing_public_key: client.signing_public_key.clone(),
+            joined: client.created_at.timestamp(),
+            phone_sms_verified: client.phone_sms_verified,
+            ral: client.ral,
+            avatar_version: client.avatar_version,
+            referred_by: match client.referred_by {
+                Some(uuid) => uuid.to_simple().to_string(),
+                None => "".into(),
+            },
+        }
+    }
+}
+
 impl From<models::ClientPrefs> for proto::Prefs {
     fn from(prefs: models::ClientPrefs) -> Self {
         Self {
@@ -1021,6 +1050,28 @@ impl Rolodex {
         })
     }
 
+    // Get all the clients referred by a client
+    #[instrument(INFO)]
+    fn handle_get_referrals(
+        &self,
+        request: &proto::GetReferralsRequest,
+    ) -> Result<proto::GetReferralsResponse, RequestError> {
+        use crate::schema::clients::columns::referred_by;
+        use crate::schema::clients::table as clients;
+
+        let request_uuid = uuid::Uuid::parse_str(&request.referred_by_client_id)?;
+
+        let conn = self.db_reader.get().unwrap();
+        let referred_clients = clients
+            .filter(referred_by.eq(request_uuid))
+            .load::<models::Client>(&conn)?;
+
+        Ok(proto::GetReferralsResponse {
+            referred_by_client_id: request.referred_by_client_id.clone(),
+            referrals: referred_clients.iter().map(proto::Client::from).collect(),
+        })
+    }
+
     // Updates the underlying client model
     #[instrument(INFO)]
     fn handle_update_prefs(
@@ -1275,6 +1326,22 @@ impl proto::server::Rolodex for Rolodex {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_update_prefs(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
+    type GetReferralsFuture = future::FutureResult<
+        Response<proto::GetReferralsResponse>,
+        rolodex_grpc::tower_grpc::Status,
+    >;
+    fn get_referrals(
+        &mut self,
+        request: Request<proto::GetReferralsRequest>,
+    ) -> Self::GetReferralsFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_get_referrals(request.get_ref())
             .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()

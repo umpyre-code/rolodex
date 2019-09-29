@@ -54,6 +54,9 @@ service Rolodex {
   // Update client prefs
   rpc UpdatePrefs(UpdatePrefsRequest) returns (UpdatePrefsResponse);
 
+  // Get all the clients referred by a client
+  rpc GetReferrals(GetReferralsRequest) returns (GetReferralsResponse);
+
   // Health check endpoint
   rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
 }
@@ -205,6 +208,13 @@ message GetClientEmailResponse {
   string client_id = 1;
   string email_as_entered = 2;
   string email_without_labels = 3;
+}
+
+// Get all the clients referred by a client
+message GetReferralsRequest { string referred_by_client_id = 1; }
+message GetReferralsResponse {
+  string referred_by_client_id = 1;
+  repeated Client referrals = 2;
 }
 
 message PhoneNumber {
