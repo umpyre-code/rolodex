@@ -418,22 +418,6 @@ impl Rolodex {
                 let auth_key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
                 redis_conn.set_ex(auth_key.clone(), BASE64URL_NOPAD.encode(&b), 300)?;
 
-                // wait for redis to sync up
-                let mut key_replicated = false;
-                while !key_replicated {
-                    let mut redis_conn = self.redis_reader.get()?;
-                    let response: RedisResult<String> = redis_conn.get(auth_key.clone());
-
-                    key_replicated = match response {
-                        Ok(_) => true,
-                        Err(_) => {
-                            let fifty_millis = time::Duration::from_millis(50);
-                            thread::sleep(fifty_millis);
-                            false
-                        }
-                    };
-                }
-
                 let user = UserRecord {
                     username: email.as_bytes(),
                     salt: &client.password_salt,
@@ -477,7 +461,9 @@ impl Rolodex {
 
         let email = request.email.clone();
 
-        let mut redis_conn = self.redis_reader.get()?;
+        // We read from the writer in this case, because sometimes we can get
+        // stale reads on the replica instance.
+        let mut redis_conn = self.redis_writer.get()?;
 
         let key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
 
