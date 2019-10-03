@@ -377,7 +377,9 @@ impl Rolodex {
         &self,
         request: &proto::AuthHandshakeRequest,
     ) -> Result<proto::AuthHandshakeResponse, RequestError> {
+        use crate::config;
         use data_encoding::BASE64URL_NOPAD;
+        use r2d2_redis_cluster::redis_cluster_rs::redis;
         use r2d2_redis_cluster::redis_cluster_rs::redis::RedisResult;
         use r2d2_redis_cluster::Commands;
         use rand::rngs::OsRng;
@@ -385,7 +387,6 @@ impl Rolodex {
         use sha2::Sha256;
         use srp::groups::G_2048;
         use srp::server::{SrpServer, UserRecord};
-        use std::{thread, time};
 
         let email = request.email.clone();
 
@@ -417,6 +418,10 @@ impl Rolodex {
 
                 let auth_key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
                 redis_conn.set_ex(auth_key.clone(), BASE64URL_NOPAD.encode(&b), 300)?;
+                let _result: (i32) = redis::cmd("WAIT")
+                    .arg(config::CONFIG.redis.replicas_per_master)
+                    .arg(0)
+                    .query(&mut (*redis_conn))?;
 
                 let user = UserRecord {
                     username: email.as_bytes(),
@@ -463,7 +468,7 @@ impl Rolodex {
 
         // We read from the writer in this case, because sometimes we can get
         // stale reads on the replica instance.
-        let mut redis_conn = self.redis_writer.get()?;
+        let mut redis_conn = self.redis_reader.get()?;
 
         let key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
 

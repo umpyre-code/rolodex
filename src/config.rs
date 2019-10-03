@@ -61,6 +61,8 @@ pub struct Metrics {
 #[derive(Debug, Deserialize)]
 pub struct Redis {
     pub address: String,
+    // Number of replicas per each master
+    pub replicas_per_master: i32,
 }
 
 fn get_rolodex_toml_path() -> String {
