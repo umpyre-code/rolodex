@@ -57,6 +57,9 @@ service Rolodex {
   // Get all the clients referred by a client
   rpc GetReferrals(GetReferralsRequest) returns (GetReferralsResponse);
 
+  // Get client stats
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+
   // Health check endpoint
   rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
 }
@@ -228,6 +231,17 @@ message Location {
   string region = 2;
   string region_subdivision = 3;
   string city = 4;
+}
+
+message CountByDate {
+  int64 count = 1;
+  int32 year = 2;
+  int32 month = 3;
+  int32 day = 4;
+}
+message GetStatsRequest {}
+message GetStatsResponse {
+  repeated CountByDate clients_by_date = 1;
 }
 
 message HealthCheckRequest { string service = 1; }

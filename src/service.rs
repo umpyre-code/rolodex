@@ -87,6 +87,14 @@ enum RequestError {
     BadArguments,
 }
 
+#[derive(Debug, QueryableByName)]
+pub struct StatsQueryResult {
+    #[sql_type = "diesel::sql_types::BigInt"]
+    pub count: i64,
+    #[sql_type = "diesel::sql_types::Date"]
+    pub ds: chrono::NaiveDate,
+}
+
 impl From<diesel::result::Error> for RequestError {
     fn from(err: diesel::result::Error) -> RequestError {
         match err {
@@ -1111,6 +1119,51 @@ impl Rolodex {
             prefs: Some(client_prefs.into()),
         })
     }
+
+    // Get client stats
+    #[instrument(INFO)]
+    fn handle_get_stats(
+        &self,
+        request: &proto::GetStatsRequest,
+    ) -> Result<proto::GetStatsResponse, RequestError> {
+        use chrono::Datelike;
+        use diesel::prelude::*;
+        use diesel::result::Error;
+        use diesel::sql_query;
+
+        let conn = self.db_reader.get().unwrap();
+        let result: Result<Vec<StatsQueryResult>, Error> = sql_query(
+            r#"
+                SELECT Count(1) AS count,
+                    dq.date  AS ds
+                FROM   (SELECT ( CURRENT_DATE - offs ) AS date
+                        FROM   Generate_series(1, 31, 1) AS offs) AS dq
+                    LEFT OUTER JOIN clients c
+                                    ON Date(c.created_at) <= dq.date
+                GROUP  BY dq.date
+                ORDER  BY dq.d
+            "#,
+        )
+        .get_results(&conn);
+
+        let clients_by_date = match result {
+            Ok(result) => result
+                .iter()
+                .map(|result| proto::CountByDate {
+                    count: result.count,
+                    year: result.ds.year(),
+                    month: result.ds.month() as i32,
+                    day: result.ds.day() as i32,
+                })
+                .collect(),
+            Err(err) => {
+                error!("Error reading stats: {:?}", err);
+                vec![]
+            }
+        };
+
+        Ok(proto::GetStatsResponse { clients_by_date })
+    }
 }
 
 impl proto::server::Rolodex for Rolodex {
@@ -1348,6 +1401,17 @@ impl proto::server::Rolodex for Rolodex {
         use futures::future::IntoFuture;
         use rolodex_grpc::tower_grpc::{Code, Status};
         self.handle_get_referrals(request.get_ref())
+            .map(Response::new)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
+            .into_future()
+    }
+
+    type GetStatsFuture =
+        future::FutureResult<Response<proto::GetStatsResponse>, rolodex_grpc::tower_grpc::Status>;
+    fn get_stats(&mut self, request: Request<proto::GetStatsRequest>) -> Self::GetStatsFuture {
+        use futures::future::IntoFuture;
+        use rolodex_grpc::tower_grpc::{Code, Status};
+        self.handle_get_stats(request.get_ref())
             .map(Response::new)
             .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))
             .into_future()
