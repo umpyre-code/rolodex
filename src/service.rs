@@ -1141,7 +1141,7 @@ impl Rolodex {
                     LEFT OUTER JOIN clients c
                                     ON Date(c.created_at) <= dq.date
                 GROUP  BY dq.date
-                ORDER  BY dq.d
+                ORDER  BY dq.date
             "#,
         )
         .get_results(&conn);
