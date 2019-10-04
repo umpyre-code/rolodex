@@ -1124,7 +1124,7 @@ impl Rolodex {
     #[instrument(INFO)]
     fn handle_get_stats(
         &self,
-        request: &proto::GetStatsRequest,
+        _request: &proto::GetStatsRequest,
     ) -> Result<proto::GetStatsResponse, RequestError> {
         use chrono::Datelike;
         use diesel::prelude::*;
