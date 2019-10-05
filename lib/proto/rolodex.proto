@@ -70,7 +70,10 @@ enum Result {
   UNAUTHORIZED = 2;
 }
 
-message Prefs { string email_notifications = 1; }
+message Prefs {
+  string email_notifications = 1;
+  bool include_in_leaderboard = 2;
+}
 
 message GetPrefsRequest { string client_id = 1; }
 message GetPrefsResponse {

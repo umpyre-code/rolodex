@@ -259,6 +259,7 @@ impl From<models::ClientPrefs> for proto::Prefs {
                 EmailNotificationsPref::Ral => "ral".into(),
                 EmailNotificationsPref::Always => "always".into(),
             },
+            include_in_leaderboard: prefs.include_in_leaderboard,
         }
     }
 }
@@ -272,6 +273,7 @@ impl From<&proto::Prefs> for models::UpdateClientPrefs {
                 "always" => EmailNotificationsPref::Always,
                 _ => EmailNotificationsPref::Ral,
             },
+            include_in_leaderboard: prefs.include_in_leaderboard,
         }
     }
 }
@@ -1107,6 +1109,7 @@ impl Rolodex {
             Some(prefs) => prefs.into(),
             _ => UpdateClientPrefs {
                 email_notifications: EmailNotificationsPref::Ral,
+                include_in_leaderboard: true,
             },
         };
 

@@ -63,6 +63,7 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         email_notifications -> Email_notifications_pref,
+        include_in_leaderboard -> Bool,
     }
 }
 

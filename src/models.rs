@@ -123,6 +123,7 @@ pub struct ClientPrefs {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub email_notifications: EmailNotificationsPref,
+    pub include_in_leaderboard: bool,
 }
 
 #[derive(AsChangeset, Insertable, Associations)]
@@ -136,4 +137,5 @@ pub struct NewClientPrefs {
 #[table_name = "prefs"]
 pub struct UpdateClientPrefs {
     pub email_notifications: EmailNotificationsPref,
+    pub include_in_leaderboard: bool,
 }
