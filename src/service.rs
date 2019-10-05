@@ -1175,7 +1175,7 @@ impl Rolodex {
 
         let result: Result<Vec<AmountByClientQueryResult>, Error> = sql_query(
             r#"
-                SELECT          c.ral * 100 AS amount_cents,
+                SELECT          CAST(c.ral * 100 AS BIGINT) AS amount_cents,
                                 c.uuid      AS client_id
                 FROM            clients     AS c
                 LEFT OUTER JOIN prefs p
