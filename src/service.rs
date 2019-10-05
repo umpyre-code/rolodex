@@ -88,11 +88,19 @@ enum RequestError {
 }
 
 #[derive(Debug, QueryableByName)]
-pub struct StatsQueryResult {
+pub struct AmountByDateQueryResult {
     #[sql_type = "diesel::sql_types::BigInt"]
     pub count: i64,
     #[sql_type = "diesel::sql_types::Date"]
     pub ds: chrono::NaiveDate,
+}
+
+#[derive(Debug, QueryableByName)]
+pub struct AmountByClientQueryResult {
+    #[sql_type = "diesel::sql_types::BigInt"]
+    pub amount_cents: i64,
+    #[sql_type = "diesel::sql_types::Uuid"]
+    pub client_id: uuid::Uuid,
 }
 
 impl From<diesel::result::Error> for RequestError {
@@ -1135,7 +1143,7 @@ impl Rolodex {
         use diesel::sql_query;
 
         let conn = self.db_reader.get().unwrap();
-        let result: Result<Vec<StatsQueryResult>, Error> = sql_query(
+        let result: Result<Vec<AmountByDateQueryResult>, Error> = sql_query(
             r#"
                 SELECT Count(1) AS count,
                     dq.date  AS ds
@@ -1165,7 +1173,37 @@ impl Rolodex {
             }
         };
 
-        Ok(proto::GetStatsResponse { clients_by_date })
+        let result: Result<Vec<AmountByClientQueryResult>, Error> = sql_query(
+            r#"
+                SELECT          c.ral * 100 AS amount_cents,
+                                c.uuid      AS client_id,
+                FROM            clients     AS c
+                LEFT OUTER JOIN prefs p
+                ON              p.client_id = c.id
+                WHERE           p.include_in_leaderboard = true
+                ORDER BY        c.ral DESC limit 10
+            "#,
+        )
+        .get_results(&conn);
+
+        let clients_by_ral = match result {
+            Ok(result) => result
+                .iter()
+                .map(|result| proto::AmountByClient {
+                    amount_cents: result.amount_cents,
+                    client_id: result.client_id.to_simple().to_string(),
+                })
+                .collect(),
+            Err(err) => {
+                error!("Error reading stats: {:?}", err);
+                vec![]
+            }
+        };
+
+        Ok(proto::GetStatsResponse {
+            clients_by_date,
+            clients_by_ral,
+        })
     }
 }
 

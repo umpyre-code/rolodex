@@ -242,9 +242,14 @@ message CountByDate {
   int32 month = 3;
   int32 day = 4;
 }
+message AmountByClient {
+  int64 amount_cents = 1;
+  string client_id = 2;
+}
 message GetStatsRequest {}
 message GetStatsResponse {
   repeated CountByDate clients_by_date = 1;
+  repeated AmountByClient clients_by_ral = 2;
 }
 
 message HealthCheckRequest { string service = 1; }
