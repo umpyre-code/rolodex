@@ -1,0 +1,1 @@
+ALTER TABLE prefs ADD COLUMN include_in_leaderboard BOOLEAN NOT NULL DEFAULT TRUE
