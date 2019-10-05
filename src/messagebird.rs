@@ -75,12 +75,17 @@ impl Client {
     pub fn send_sms_async(
         &self,
         recipient: &str,
-        originator: &str,
+        _originator: &str,
         body: &str,
     ) -> impl Future<Item = reqwest::async::Response, Error = reqwest::Error> {
+        let recipient = if recipient.starts_with("+") {
+            recipient.get(1..).unwrap()
+        } else {
+            recipient
+        };
         let form = reqwest::async::multipart::Form::new()
             .text("recipients", recipient.to_owned())
-            .text("originator", originator.to_owned())
+            .text("originator", "inbox")
             .text("body", body.to_owned());
         self.client
             .post("https://rest.messagebird.com/messages")
