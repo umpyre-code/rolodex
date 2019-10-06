@@ -85,7 +85,7 @@ impl Client {
         };
         let form = reqwest::async::multipart::Form::new()
             .text("recipients", recipient.to_owned())
-            .text("originator", "inbox")
+            .text("originator", "Umpyre")
             .text("body", body.to_owned());
         self.client
             .post("https://rest.messagebird.com/messages")

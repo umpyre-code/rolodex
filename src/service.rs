@@ -1025,8 +1025,8 @@ impl Rolodex {
 
         let duration = Utc::now().naive_utc() - db_code.updated_at;
 
-        // Don't send more than 1 code very 120 seconds (2 minutes)
-        if duration.num_seconds() > 120 {
+        // Don't send more than 1 code very 30 seconds
+        if duration.num_seconds() > 30 {
             let code = generate_and_send_verification_code(&client);
 
             let conn = self.db_writer.get().unwrap();
