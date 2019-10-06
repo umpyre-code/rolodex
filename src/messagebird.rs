@@ -78,11 +78,6 @@ impl Client {
         _originator: &str,
         body: &str,
     ) -> impl Future<Item = reqwest::async::Response, Error = reqwest::Error> {
-        let recipient = if recipient.starts_with("+") {
-            recipient.get(1..).unwrap()
-        } else {
-            recipient
-        };
         let form = reqwest::async::multipart::Form::new()
             .text("recipients", recipient.to_owned())
             .text("originator", "Umpyre")
