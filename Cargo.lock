@@ -327,7 +327,7 @@ dependencies = [
 
 [[package]]
 name = "diesel"
-version = "1.4.2"
+version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1608,7 +1608,7 @@ version = "0.1.0"
 dependencies = [
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "data-encoding 2.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "diesel 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "diesel 1.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "diesel-derive-enum 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2678,7 +2678,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum data-encoding 2.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f4f47ca1860a761136924ddd2422ba77b2ea54fe8cc75b9040804a0d9d32ad97"
 "checksum data-encoding-macro 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "1995a2e32b5306e4f49cf55ffcf4365a4dab2c7ca3a97163a4f099ec2fee3453"
 "checksum data-encoding-macro-internal 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "dd41a6f6a292f3d5be0cd1562bd6007652279d6afe3246f2722749e927338f7a"
-"checksum diesel 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "8d24935ba50c4a8dc375a0fd1f8a2ba6bdbdc4125713126a74b965d6a01a06d7"
+"checksum diesel 1.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "9d7cc03b910de9935007861dce440881f69102aaaedfd4bc5a6f40340ca5840c"
 "checksum diesel-derive-enum 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "adbaf5e1344edeedc4d1cead2dc3ce6fc4115bb26b3704c533b92717940f2fb5"
 "checksum diesel_derives 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "62a27666098617d52c487a41f70de23d44a1dc1f3aa5877ceba2790fb1f1cab4"
 "checksum digest 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f3d0c8c8752312f9713efd397ff63acb9f85585afbf179282e720e7704954dd5"
