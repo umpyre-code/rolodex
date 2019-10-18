@@ -398,6 +398,7 @@ impl Rolodex {
         use crate::config;
         use data_encoding::BASE64URL_NOPAD;
         use r2d2_redis_cluster::redis_cluster_rs::redis;
+        use r2d2_redis_cluster::redis_cluster_rs::redis::RedisResult;
         use r2d2_redis_cluster::Commands;
         use rand::rngs::OsRng;
         use rand::RngCore;
@@ -435,11 +436,21 @@ impl Rolodex {
 
                 let auth_key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
                 redis_conn.set_ex(auth_key.clone(), BASE64URL_NOPAD.encode(&b), 300)?;
-                let result: (i32) = redis::cmd("WAIT")
+                let _result: (i32) = redis::cmd("WAIT")
                     .arg(config::CONFIG.redis.replicas_per_master)
                     .arg(0)
                     .query(&mut (*redis_conn))?;
-                info!("Key replicated to {} replicas", result);
+
+                let mut checks_passed = 0;
+                let checks_required = config::CONFIG.redis.replicas_per_master + 1;
+                while checks_passed < checks_required {
+                    let mut redis_conn = self.redis_reader.get()?;
+                    let response: RedisResult<String> = redis_conn.get(auth_key.clone());
+                    match response {
+                        Ok(_) => checks_passed += 1,
+                        _ => checks_passed -= 1,
+                    };
+                }
 
                 let user = UserRecord {
                     username: email.as_bytes(),
