@@ -441,6 +441,7 @@ impl Rolodex {
                     .arg(0)
                     .query(&mut (*redis_conn))?;
 
+                // Verify the key was _actually_ written to n + 1 replicas before proceeding.
                 let mut checks_passed = 0;
                 let checks_required = config::CONFIG.redis.replicas_per_master + 1;
                 while checks_passed < checks_required {
