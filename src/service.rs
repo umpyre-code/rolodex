@@ -451,6 +451,7 @@ impl Rolodex {
                         Ok(_) => checks_passed += 1,
                         _ => checks_passed -= 1,
                     };
+                    checks_passed = std::cmp::max(0, checks_passed);
                 }
 
                 let user = UserRecord {
