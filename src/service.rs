@@ -436,10 +436,11 @@ impl Rolodex {
 
                 let auth_key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
                 redis_conn.set_ex(auth_key.clone(), BASE64URL_NOPAD.encode(&b), 300)?;
-                let _result: (i32) = redis::cmd("WAIT")
+                let result: (i32) = redis::cmd("WAIT")
                     .arg(config::CONFIG.redis.replicas_per_master)
                     .arg(0)
                     .query(&mut (*redis_conn))?;
+                info!("Key replicated to {} replicas", result);
 
                 let user = UserRecord {
                     username: email.as_bytes(),
@@ -484,8 +485,6 @@ impl Rolodex {
 
         let email = request.email.clone();
 
-        // We read from the writer in this case, because sometimes we can get
-        // stale reads on the replica instance.
         let mut redis_conn = self.redis_reader.get()?;
 
         let key = format!("auth:{}:{}", email, BASE64URL_NOPAD.encode(&request.a_pub));
