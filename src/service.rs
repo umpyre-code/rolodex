@@ -398,7 +398,6 @@ impl Rolodex {
         use crate::config;
         use data_encoding::BASE64URL_NOPAD;
         use r2d2_redis_cluster::redis_cluster_rs::redis;
-        use r2d2_redis_cluster::redis_cluster_rs::redis::RedisResult;
         use r2d2_redis_cluster::Commands;
         use rand::rngs::OsRng;
         use rand::RngCore;
