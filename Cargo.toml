@@ -39,7 +39,7 @@ tower-service = "0.2"
 tower-util = "0.1"
 trust-dns = { version = "0.17", default-features = false, features = ["dns-over-https-rustls", "dns-over-rustls", "dnssec-ring"] }
 url = "2"
-uuid = "0.8"
+uuid = "0.7"
 yansi = "0.5"
 
 [patch.crates-io]
