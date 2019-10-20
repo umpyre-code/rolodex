@@ -211,22 +211,7 @@ impl From<models::Client> for proto::NewClientResponse {
 
 impl From<models::Client> for proto::Client {
     fn from(client: models::Client) -> proto::Client {
-        proto::Client {
-            box_public_key: client.box_public_key,
-            client_id: client.uuid.to_simple().to_string(),
-            full_name: client.full_name,
-            handle: client.handle.unwrap_or_else(|| String::from("")),
-            profile: client.profile.unwrap_or_else(|| String::from("")),
-            signing_public_key: client.signing_public_key,
-            joined: client.created_at.timestamp(),
-            phone_sms_verified: client.phone_sms_verified,
-            ral: client.ral,
-            avatar_version: client.avatar_version,
-            referred_by: match client.referred_by {
-                Some(uuid) => uuid.to_simple().to_string(),
-                None => "".into(),
-            },
-        }
+        (&client).into()
     }
 }
 
