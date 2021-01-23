@@ -35,7 +35,7 @@ tokio-udp = "0.1"
 toml = "0.5"
 tower-hyper = "0.1"
 tower-request-modifier = "0.1"
-tower-service = "0.2"
+tower-service = "0.3"
 tower-util = "0.1"
 trust-dns = { version = "0.17", default-features = false, features = ["dns-over-https-rustls", "dns-over-rustls", "dnssec-ring"] }
 url = "2"
