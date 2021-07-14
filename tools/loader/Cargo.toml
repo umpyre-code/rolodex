@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 data-encoding = "2"
-env_logger = "0.7"
+env_logger = "0.9"
 failure = "0.1"
 log = "0.4"
 redis_cluster_rs = "0.1"
